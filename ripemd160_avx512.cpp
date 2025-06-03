@@ -52,10 +52,10 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define add3(x0, x1, x2) _mm512_add_epi32(_mm512_add_epi32(x0, x1), x2)
 #define add4(x0, x1, x2, x3) _mm512_add_epi32(_mm512_add_epi32(x0, x1), _mm512_add_epi32(x2, x3))
 
-// Round function with merged operations
-#define Round(a, b, c, d, e, f, x, k, r)          \
-  u = add4(a, f, x, _mm512_set1_epi32(k));        \
-  a = add3(ROL(u, r), e, _mm512_setzero_si512()); \
+// POPRAWKA: Naprawione makro Round
+#define Round(a, b, c, d, e, f, x, k, r)   \
+  u = add4(a, f, x, _mm512_set1_epi32(k)); \
+  a = _mm512_add_epi32(ROL(u, r), e);      \
   c = ROL(c, 10);
 
 // Round macros with explicit lane usage
@@ -70,15 +70,15 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define R42(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x7A6D76E9ul, r)
 #define R52(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 
-// Load 16 words from message blocks
+// POPRAWKA: Naprawione ładowanie danych z prawidłową kolejnością
 #define LOADW(i)                                                                          \
   _mm512_set_epi32(                                                                       \
-      *((uint32_t *)blk[0] + i), *((uint32_t *)blk[1] + i), *((uint32_t *)blk[2] + i),    \
-      *((uint32_t *)blk[3] + i), *((uint32_t *)blk[4] + i), *((uint32_t *)blk[5] + i),    \
-      *((uint32_t *)blk[6] + i), *((uint32_t *)blk[7] + i), *((uint32_t *)blk[8] + i),    \
-      *((uint32_t *)blk[9] + i), *((uint32_t *)blk[10] + i), *((uint32_t *)blk[11] + i),  \
-      *((uint32_t *)blk[12] + i), *((uint32_t *)blk[13] + i), *((uint32_t *)blk[14] + i), \
-      *((uint32_t *)blk[15] + i))
+      *((uint32_t *)blk[15] + i), *((uint32_t *)blk[14] + i), *((uint32_t *)blk[13] + i), \
+      *((uint32_t *)blk[12] + i), *((uint32_t *)blk[11] + i), *((uint32_t *)blk[10] + i), \
+      *((uint32_t *)blk[9] + i), *((uint32_t *)blk[8] + i), *((uint32_t *)blk[7] + i),    \
+      *((uint32_t *)blk[6] + i), *((uint32_t *)blk[5] + i), *((uint32_t *)blk[4] + i),    \
+      *((uint32_t *)blk[3] + i), *((uint32_t *)blk[2] + i), *((uint32_t *)blk[1] + i),    \
+      *((uint32_t *)blk[0] + i))
 
 // Initialize state with constants
 void Initialize(__m512i state[5]) { memcpy(state, _init, sizeof(_init)); }
@@ -276,7 +276,7 @@ void Transform(__m512i state[5], uint8_t *blk[16]) {
 static const uint64_t sizedesc_32 = 32 << 3;
 static const unsigned char pad[64] = {0x80};
 
-// Extracts hash to destination
+// POPRAWKA: Naprawiono indeksy w funkcji DEPACK
 #define DEPACK(d, idx)                    \
   do {                                    \
     uint32_t *s0 = (uint32_t *)&state[0]; \
@@ -284,11 +284,11 @@ static const unsigned char pad[64] = {0x80};
     uint32_t *s2 = (uint32_t *)&state[2]; \
     uint32_t *s3 = (uint32_t *)&state[3]; \
     uint32_t *s4 = (uint32_t *)&state[4]; \
-    ((uint32_t *)d)[0] = s0[idx];         \
-    ((uint32_t *)d)[1] = s1[idx];         \
-    ((uint32_t *)d)[2] = s2[idx];         \
-    ((uint32_t *)d)[3] = s3[idx];         \
-    ((uint32_t *)d)[4] = s4[idx];         \
+    ((uint32_t *)d)[0] = s0[15 - idx];    \
+    ((uint32_t *)d)[1] = s1[15 - idx];    \
+    ((uint32_t *)d)[2] = s2[15 - idx];    \
+    ((uint32_t *)d)[3] = s3[15 - idx];    \
+    ((uint32_t *)d)[4] = s4[15 - idx];    \
   } while (0)
 
 // Main hashing function
@@ -315,23 +315,23 @@ void ripemd160avx512_32(unsigned char *i0, unsigned char *i1, unsigned char *i2,
 
   Transform(state, bs);
 
-  // Store results
-  DEPACK(d0, 15);
-  DEPACK(d1, 14);
-  DEPACK(d2, 13);
-  DEPACK(d3, 12);
-  DEPACK(d4, 11);
-  DEPACK(d5, 10);
-  DEPACK(d6, 9);
-  DEPACK(d7, 8);
-  DEPACK(d8, 7);
-  DEPACK(d9, 6);
-  DEPACK(d10, 5);
-  DEPACK(d11, 4);
-  DEPACK(d12, 3);
-  DEPACK(d13, 2);
-  DEPACK(d14, 1);
-  DEPACK(d15, 0);
+  // Store results z poprawionymi indeksami
+  DEPACK(d0, 0);
+  DEPACK(d1, 1);
+  DEPACK(d2, 2);
+  DEPACK(d3, 3);
+  DEPACK(d4, 4);
+  DEPACK(d5, 5);
+  DEPACK(d6, 6);
+  DEPACK(d7, 7);
+  DEPACK(d8, 8);
+  DEPACK(d9, 9);
+  DEPACK(d10, 10);
+  DEPACK(d11, 11);
+  DEPACK(d12, 12);
+  DEPACK(d13, 13);
+  DEPACK(d14, 14);
+  DEPACK(d15, 15);
 }
 
 }  // namespace ripemd160avx512
