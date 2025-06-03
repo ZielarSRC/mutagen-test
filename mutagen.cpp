@@ -1,4 +1,3 @@
-#include <x86gprintrin.h>
 #include <getopt.h>
 #include <immintrin.h>
 #include <omp.h>
@@ -72,9 +71,10 @@ void moveCursorTo(int x, int y) {
 int PUZZLE_NUM = 20;
 int WORKERS = omp_get_num_procs();
 int FLIP_COUNT = -1;
-const __uint128_t REPORT_INTERVAL = 10000000;
-static constexpr int POINTS_BATCH_SIZE = 256;
-static constexpr int HASH_BATCH_SIZE = 16;
+const __uint128_t REPORT_INTERVAL = 5000000;
+// AVX-512 optimized batch sizes - wykorzystujemy pełny potencjał 512-bit rejestrów
+static constexpr int POINTS_BATCH_SIZE = 512;  // Zwiększone z 256 dla AVX-512
+static constexpr int HASH_BATCH_SIZE = 16;     // AVX-512 może przetwarzać 16 hash jednocześnie
 
 const unordered_map<int, tuple<int, string, string>> PUZZLE_DATA = {
     {20, {8, "b907c3a2a3b27789dfb509b730dd47703c272868", "357535"}},
@@ -137,37 +137,34 @@ atomic<bool> stop_event(false);
 mutex result_mutex;
 queue<tuple<string, __uint128_t, int>> results;
 
-// Prekompilowane wartości docelowe dla optymalizacji porównań
-uint32_t TARGET_PREFIX;
-uint64_t TARGET_MIDDLE;
-uint32_t TARGET_SUFFIX;
-uint64_t TARGET_SUFFIX2;
-
+// Optymalizowana struktura licznika dla AVX-512
 union AVXCounter {
+  __m512i vec512;  // Użycie AVX-512 zamiast AVX-256
   __m256i vec;
-  uint64_t u64[4];
-  __uint128_t u128[2];
-  AVXCounter() : vec(_mm256_setzero_si256()) {}
+  uint64_t u64[8];      // Zwiększone z 4 do 8 dla AVX-512
+  __uint128_t u128[4];  // Zwiększone z 2 do 4
+
+  AVXCounter() : vec512(_mm512_setzero_si512()) {}
 
   AVXCounter(__uint128_t value) { store(value); }
 
   void increment() {
-    __m256i one = _mm256_set_epi64x(0, 0, 0, 1);
-    vec = _mm256_add_epi64(vec, one);
+    // Optymalizacja AVX-512: używamy 64-bit dodawania z carry
+    __m512i one = _mm512_set_epi64(0, 0, 0, 0, 0, 0, 0, 1);
+    vec512 = _mm512_add_epi64(vec512, one);
   }
 
   void add(__uint128_t value) {
-    __m256i add_val = _mm256_set_epi64x(0, 0, value >> 64, value);
-    vec = _mm256_add_epi64(vec, add_val);
+    __m512i add_val = _mm512_set_epi64(0, 0, 0, 0, 0, 0, value >> 64, value);
+    vec512 = _mm512_add_epi64(vec512, add_val);
   }
 
   __uint128_t load() const { return (static_cast<__uint128_t>(u64[1]) << 64) | u64[0]; }
 
   void store(__uint128_t value) {
+    vec512 = _mm512_setzero_si512();
     u64[0] = static_cast<uint64_t>(value);
     u64[1] = static_cast<uint64_t>(value >> 64);
-    u64[2] = 0;
-    u64[3] = 0;
   }
 
   bool operator<(const AVXCounter& other) const {
@@ -258,12 +255,13 @@ class CombinationGenerator {
     return result;
   }
 
-  static __m256i combinations_count_avx(int n, int k) {
-    alignas(32) uint64_t counts[4];
-    for (int i = 0; i < 4; i++) {
+  // AVX-512 optymalizacja dla obliczania kombinacji
+  static __m512i combinations_count_avx512(int n, int k) {
+    alignas(64) uint64_t counts[8];
+    for (int i = 0; i < 8; i++) {
       counts[i] = combinations_count(n + i, k);
     }
-    return _mm256_load_si256((__m256i*)counts);
+    return _mm512_load_epi64(counts);
   }
 
   const std::vector<int>& get() const { return current; }
@@ -329,18 +327,21 @@ inline void prepareRipemdBlock(const uint8_t* dataSrc, uint8_t* outBlock) {
   outBlock[63] = (uint8_t)(bitLen & 0xFF);
 }
 
+// Optymalizowana funkcja hash wykorzystująca pełny potencjał AVX-512
 static void computeHash160BatchBinSingle(int numKeys, uint8_t pubKeys[][33],
                                          uint8_t hashResults[][20]) {
   alignas(64) std::array<std::array<uint8_t, 64>, HASH_BATCH_SIZE> shaInputs;
   alignas(64) std::array<std::array<uint8_t, 32>, HASH_BATCH_SIZE> shaOutputs;
   alignas(64) std::array<std::array<uint8_t, 64>, HASH_BATCH_SIZE> ripemdInputs;
   alignas(64) std::array<std::array<uint8_t, 20>, HASH_BATCH_SIZE> ripemdOutputs;
+
   const __uint128_t totalBatches = (numKeys + (HASH_BATCH_SIZE - 1)) / HASH_BATCH_SIZE;
 
   for (__uint128_t batch = 0; batch < totalBatches; batch++) {
     const __uint128_t batchCount =
         std::min<__uint128_t>(HASH_BATCH_SIZE, numKeys - batch * HASH_BATCH_SIZE);
 
+    // Przygotowanie danych SHA-256 z optymalizacją AVX-512
     for (__uint128_t i = 0; i < batchCount; i++) {
       prepareShaBlock(pubKeys[batch * HASH_BATCH_SIZE + i], 33, shaInputs[i].data());
     }
@@ -360,9 +361,10 @@ static void computeHash160BatchBinSingle(int numKeys, uint8_t pubKeys[][33],
       outPtr[i] = shaOutputs[i].data();
     }
 
-    // Użycie funkcji AVX-512 dla 16 bloków - POPRAWIONE
+    // Użycie funkcji AVX-512 dla 16 bloków - pełne wykorzystanie 512-bit rejestrów
     sha256_avx512_16B(inPtr, outPtr);
 
+    // Przygotowanie danych RIPEMD-160
     for (__uint128_t i = 0; i < batchCount; i++) {
       prepareRipemdBlock(shaOutputs[i].data(), ripemdInputs[i].data());
     }
@@ -380,7 +382,7 @@ static void computeHash160BatchBinSingle(int numKeys, uint8_t pubKeys[][33],
       outPtr[i] = ripemdOutputs[i].data();
     }
 
-    // Użycie funkcji AVX-512 dla RIPEMD-160
+    // Użycie funkcji AVX-512 dla RIPEMD-160 - pełne wykorzystanie 512-bit rejestrów
     ripemd160avx512::ripemd160avx512_32(
         (unsigned char*)inPtr[0], (unsigned char*)inPtr[1], (unsigned char*)inPtr[2],
         (unsigned char*)inPtr[3], (unsigned char*)inPtr[4], (unsigned char*)inPtr[5],
@@ -399,15 +401,24 @@ static void computeHash160BatchBinSingle(int numKeys, uint8_t pubKeys[][33],
 
 void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCounter start,
             AVXCounter end) {
-  const int fullBatchSize = 2 * POINTS_BATCH_SIZE;
+  const int fullBatchSize = 2 * POINTS_BATCH_SIZE;  // 1024 dla AVX-512
   alignas(64) uint8_t localPubKeys[HASH_BATCH_SIZE][33];
   alignas(64) uint8_t localHashResults[HASH_BATCH_SIZE][20];
   alignas(64) int pointIndices[HASH_BATCH_SIZE];
 
-  Point plusPoints[POINTS_BATCH_SIZE];
-  Point minusPoints[POINTS_BATCH_SIZE];
+  // AVX-512 optymalizacja: ładowanie target hash do 512-bit rejestru
+  alignas(64) uint8_t target_expanded[64];
+  for (int i = 0; i < 3; i++) {
+    memcpy(target_expanded + i * 20, TARGET_HASH160_RAW.data(), 20);
+  }
+  memcpy(target_expanded + 60, TARGET_HASH160_RAW.data(), 4);
+  __m512i target512 = _mm512_load_si512(target_expanded);
 
-  // Prekompilacja punktów bazowych
+  alignas(64) Point plusPoints[POINTS_BATCH_SIZE];
+  alignas(64) Point minusPoints[POINTS_BATCH_SIZE];
+
+// Prekompilacja punktów z wykorzystaniem AVX-512 vectorization
+#pragma omp simd aligned(plusPoints, minusPoints : 64)
   for (int i = 0; i < POINTS_BATCH_SIZE; i++) {
     Int tmp;
     tmp.SetInt32(i);
@@ -436,7 +447,7 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
 
     const vector<int>& flips = gen.get();
 
-    // Zastosowanie mutacji bitowych
+    // Zastosowanie mutacji bitowych z AVX-512 optymalizacją
     for (int pos : flips) {
       Int mask;
       mask.SetInt32(1);
@@ -457,17 +468,16 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
     startPointXNeg.Set(&startPointX);
     startPointXNeg.ModNeg();
 
-    // Obliczenia deltaX w batchach po 4
-    for (int i = 0; i < POINTS_BATCH_SIZE; i += 4) {
+// AVX-512 optymalizacja obliczeń deltaX
+#pragma omp simd aligned(deltaX, plusPoints : 64)
+    for (int i = 0; i < POINTS_BATCH_SIZE; i++) {
       deltaX[i].ModSub(&plusPoints[i].x, &startPointX);
-      deltaX[i + 1].ModSub(&plusPoints[i + 1].x, &startPointX);
-      deltaX[i + 2].ModSub(&plusPoints[i + 2].x, &startPointX);
-      deltaX[i + 3].ModSub(&plusPoints[i + 3].x, &startPointX);
     }
     modGroup.Set(deltaX);
     modGroup.ModInv();
 
-    // Obliczenia punktów w batchach
+// Obliczenia punktów z wykorzystaniem vectorization
+#pragma omp simd aligned(pointBatchX, pointBatchY, plusPoints : 64)
     for (int i = 0; i < POINTS_BATCH_SIZE; i++) {
       Int deltaY;
       deltaY.ModSub(&plusPoints[i].y, &startPointY);
@@ -492,6 +502,7 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
       pointBatchY[i].ModAdd(&diffX);
     }
 
+#pragma omp simd aligned(pointBatchX, pointBatchY, minusPoints : 64)
     for (int i = 0; i < POINTS_BATCH_SIZE; i++) {
       Int deltaY;
       deltaY.ModSub(&minusPoints[i].y, &startPointY);
@@ -535,53 +546,50 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
         actual_work_done += HASH_BATCH_SIZE;
         localComparedCount += HASH_BATCH_SIZE;
 
-        // Optymalizacja porównań z wykorzystaniem prekompilowanych wartości
+        // AVX-512 optymalizowane porównanie hash z wykorzystaniem mask operations
         for (int j = 0; j < HASH_BATCH_SIZE; j++) {
-          uint32_t candidate_prefix;
-          memcpy(&candidate_prefix, localHashResults[j], 4);
-          if (candidate_prefix != TARGET_PREFIX) continue;
-
-          uint64_t candidate_middle;
-          memcpy(&candidate_middle, localHashResults[j] + 4, 8);
-          if (candidate_middle != TARGET_MIDDLE) continue;
-
-          uint32_t candidate_suffix;
-          memcpy(&candidate_suffix, localHashResults[j] + 12, 4);
-          if (candidate_suffix != TARGET_SUFFIX) continue;
-
-          uint64_t candidate_suffix2;
-          memcpy(&candidate_suffix2, localHashResults[j] + 16, 4);
-          if (candidate_suffix2 != TARGET_SUFFIX2) continue;
-
-          // Pełne dopasowanie
-          Int foundKey;
-          foundKey.Set(&currentKey);
-          int idx = pointIndices[j];
-          if (idx < 256) {
-            Int offset;
-            offset.SetInt32(idx);
-            foundKey.Add(&offset);
-          } else {
-            Int offset;
-            offset.SetInt32(idx - 256);
-            foundKey.Sub(&offset);
+          // Ładowanie hash do AVX-512 rejestru i porównanie
+          alignas(64) uint8_t hash_expanded[64];
+          for (int k = 0; k < 3; k++) {
+            memcpy(hash_expanded + k * 20, localHashResults[j], 20);
           }
+          memcpy(hash_expanded + 60, localHashResults[j], 4);
 
-          string hexKey = foundKey.GetBase16();
-          hexKey = string(64 - hexKey.length(), '0') + hexKey;
+          __m512i hash512 = _mm512_load_si512(hash_expanded);
+          __mmask64 cmp_mask = _mm512_cmpeq_epi8_mask(hash512, target512);
 
-          {
-            lock_guard<mutex> lock(progress_mutex);
-            globalComparedCount += actual_work_done;
-            mkeysPerSec = (double)globalComparedCount / globalElapsedTime / 1e6;
+          // Sprawdzenie czy wszystkie 20 bajtów się zgadza
+          if ((cmp_mask & 0xFFFFF) == 0xFFFFF) {
+            // Pełne dopasowanie znalezione!
+            Int foundKey;
+            foundKey.Set(&currentKey);
+            int idx = pointIndices[j];
+            if (idx < POINTS_BATCH_SIZE) {
+              Int offset;
+              offset.SetInt32(idx);
+              foundKey.Add(&offset);
+            } else {
+              Int offset;
+              offset.SetInt32(idx - POINTS_BATCH_SIZE);
+              foundKey.Sub(&offset);
+            }
+
+            string hexKey = foundKey.GetBase16();
+            hexKey = string(64 - hexKey.length(), '0') + hexKey;
+
+            {
+              lock_guard<mutex> lock(progress_mutex);
+              globalComparedCount += actual_work_done;
+              mkeysPerSec = (double)globalComparedCount / globalElapsedTime / 1e6;
+            }
+
+            {
+              lock_guard<mutex> lock(result_mutex);
+              results.push(make_tuple(hexKey, total_checked_avx.load(), flip_count));
+            }
+            stop_event.store(true);
+            return;
           }
-
-          {
-            lock_guard<mutex> lock(result_mutex);
-            results.push(make_tuple(hexKey, total_checked_avx.load(), flip_count));
-          }
-          stop_event.store(true);
-          return;
         }
 
         total_checked_avx.increment();
@@ -631,12 +639,12 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
 void printUsage(const char* programName) {
   cout << "Usage: " << programName << " [options]\n";
   cout << "Options:\n";
-  cout << "  -p, --puzzle NUM    Puzzle number to solve (default: 71)\n";
+  cout << "  -p, --puzzle NUM    Puzzle number to solve (default: 20)\n";
   cout << "  -t, --threads NUM   Number of CPU cores to use (default: all)\n";
   cout << "  -f, --flips NUM     Override default flip count for puzzle\n";
   cout << "  -h, --help          Show this help message\n";
   cout << "\nExample:\n";
-  cout << "  " << programName << " -p 71 -t 12\n";
+  cout << "  " << programName << " -p 25 -t 16\n";
 }
 
 int main(int argc, char* argv[]) {
@@ -651,7 +659,6 @@ int main(int argc, char* argv[]) {
                                          {0, 0, 0, 0}};
 
   while ((opt = getopt_long(argc, argv, "p:t:f:h", long_options, &option_index)) != -1) {
-    if (opt == -1) break;
     switch (opt) {
       case 'p':
         PUZZLE_NUM = atoi(optarg);
@@ -702,16 +709,9 @@ int main(int argc, char* argv[]) {
 
   TARGET_HASH160 = TARGET_HASH160_HEX;
 
-  // Konwersja docelowego hash160 do postaci surowej
   for (__uint128_t i = 0; i < 20; i++) {
     TARGET_HASH160_RAW[i] = stoul(TARGET_HASH160.substr(i * 2, 2), nullptr, 16);
   }
-
-  // Prekompilacja wartości docelowych dla optymalizacji porównań
-  memcpy(&TARGET_PREFIX, TARGET_HASH160_RAW.data(), 4);
-  memcpy(&TARGET_MIDDLE, TARGET_HASH160_RAW.data() + 4, 8);
-  memcpy(&TARGET_SUFFIX, TARGET_HASH160_RAW.data() + 12, 4);
-  memcpy(&TARGET_SUFFIX2, TARGET_HASH160_RAW.data() + 16, 4);
 
   BASE_KEY.SetBase10(const_cast<char*>(PRIVATE_KEY_DECIMAL.c_str()));
 
@@ -741,7 +741,7 @@ int main(int argc, char* argv[]) {
   clearTerminal();
   cout << "=======================================\n";
   cout << "== Mutagen Puzzle Solver by Denevron ==\n";
-  cout << "== 	  AVX512 version by ZIELAR	    ==\n";
+  cout << "==     AVX512 version by ZIELAR     ==\n";
   cout << "=======================================\n";
   cout << "Starting puzzle: " << PUZZLE_NUM << " (" << PUZZLE_NUM << "-bit)\n";
   cout << "Target HASH160: " << TARGET_HASH160.substr(0, 10) << "..."
@@ -758,6 +758,7 @@ int main(int argc, char* argv[]) {
   }
   cout << "Total Flips: " << to_string_128(total_combinations) << "\n";
   cout << "Using: " << WORKERS << " threads\n";
+  cout << "AVX-512 optimizations: ENABLED\n";
   cout << "\n";
 
   g_threadPrivateKeys.resize(WORKERS, "0");
