@@ -71,7 +71,7 @@ void moveCursorTo(int x, int y) {
 int PUZZLE_NUM = 20;
 int WORKERS = omp_get_num_procs();
 int FLIP_COUNT = -1;
-const __uint128_t REPORT_INTERVAL = 5000000;
+const __uint128_t REPORT_INTERVAL = 500000;
 // AVX-512 optimized batch sizes - wykorzystujemy pełny potencjał 512-bit rejestrów
 static constexpr int POINTS_BATCH_SIZE = 512;  // Zwiększone z 256 dla AVX-512
 static constexpr int HASH_BATCH_SIZE = 16;     // AVX-512 może przetwarzać 16 hash jednocześnie
