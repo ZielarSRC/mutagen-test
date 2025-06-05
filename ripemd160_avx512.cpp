@@ -37,8 +37,7 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
     0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul,
     0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul};
 
-// AVX-512 optimized operations
-#define _mm512_not_si512(x) _mm512_xor_si512((x), _mm512_set1_epi32(-1))
+// AVX-512 optimized operations with proper intrinsics
 #define ROL(x, n) _mm512_rol_epi32(x, n)
 
 // RIPEMD-160 functions using AVX-512 ternary logic
@@ -48,17 +47,19 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define f4(x, y, z) _mm512_ternarylogic_epi32(x, z, y, 0xAC)  // (x & z) | (y & ~z)
 #define f5(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x3C)  // x ^ (y | ~z)
 
-// Adding helpers
+// Efficient addition helpers
 #define add3(x0, x1, x2) _mm512_add_epi32(_mm512_add_epi32(x0, x1), x2)
 #define add4(x0, x1, x2, x3) _mm512_add_epi32(_mm512_add_epi32(x0, x1), _mm512_add_epi32(x2, x3))
 
-// POPRAWKA: Naprawione makro Round
-#define Round(a, b, c, d, e, f, x, k, r)   \
-  u = add4(a, f, x, _mm512_set1_epi32(k)); \
-  a = _mm512_add_epi32(ROL(u, r), e);      \
-  c = ROL(c, 10);
+// Fixed Round macro with proper variable usage
+#define Round(a, b, c, d, e, f, x, k, r)             \
+  do {                                               \
+    __m512i u = add4(a, f, x, _mm512_set1_epi32(k)); \
+    a = _mm512_add_epi32(ROL(u, r), e);              \
+    c = ROL(c, 10);                                  \
+  } while (0)
 
-// Round macros with explicit lane usage
+// Round macros with proper function usage
 #define R11(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 #define R21(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x5A827999ul, r)
 #define R31(a, b, c, d, e, x, r) Round(a, b, c, d, e, f3(b, c, d), x, 0x6ED9EBA1ul, r)
@@ -70,31 +71,30 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define R42(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x7A6D76E9ul, r)
 #define R52(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 
-// POPRAWKA: Naprawione ładowanie danych z prawidłową kolejnością
-#define LOADW(i)                                                                          \
-  _mm512_set_epi32(                                                                       \
-      *((uint32_t *)blk[15] + i), *((uint32_t *)blk[14] + i), *((uint32_t *)blk[13] + i), \
-      *((uint32_t *)blk[12] + i), *((uint32_t *)blk[11] + i), *((uint32_t *)blk[10] + i), \
-      *((uint32_t *)blk[9] + i), *((uint32_t *)blk[8] + i), *((uint32_t *)blk[7] + i),    \
-      *((uint32_t *)blk[6] + i), *((uint32_t *)blk[5] + i), *((uint32_t *)blk[4] + i),    \
-      *((uint32_t *)blk[3] + i), *((uint32_t *)blk[2] + i), *((uint32_t *)blk[1] + i),    \
-      *((uint32_t *)blk[0] + i))
+// Fixed data loading macro with proper endianness handling
+#define LOADW(i)                                                                                 \
+  _mm512_set_epi32(((uint32_t *)blk[15])[i], ((uint32_t *)blk[14])[i], ((uint32_t *)blk[13])[i], \
+                   ((uint32_t *)blk[12])[i], ((uint32_t *)blk[11])[i], ((uint32_t *)blk[10])[i], \
+                   ((uint32_t *)blk[9])[i], ((uint32_t *)blk[8])[i], ((uint32_t *)blk[7])[i],    \
+                   ((uint32_t *)blk[6])[i], ((uint32_t *)blk[5])[i], ((uint32_t *)blk[4])[i],    \
+                   ((uint32_t *)blk[3])[i], ((uint32_t *)blk[2])[i], ((uint32_t *)blk[1])[i],    \
+                   ((uint32_t *)blk[0])[i])
 
-// Initialize state with constants
+// Initialize RIPEMD-160 state
 void Initialize(__m512i state[5]) { memcpy(state, _init, sizeof(_init)); }
 
-// Process 16 message blocks
+// Process 16 message blocks simultaneously
 void Transform(__m512i state[5], uint8_t *blk[16]) {
   __m512i a1 = state[0], b1 = state[1], c1 = state[2], d1 = state[3], e1 = state[4];
   __m512i a2 = a1, b2 = b1, c2 = c1, d2 = d1, e2 = e1;
-  __m512i u, w[16];
+  __m512i w[16];
 
   // Load all 16 message words
   for (int i = 0; i < 16; ++i) {
     w[i] = LOADW(i);
   }
 
-  // Round 1
+  // Round 1 - Left path and right path interleaved
   R11(a1, b1, c1, d1, e1, w[0], 11);
   R12(a2, b2, c2, d2, e2, w[5], 8);
   R11(e1, a1, b1, c1, d1, w[1], 14);
@@ -264,7 +264,7 @@ void Transform(__m512i state[5], uint8_t *blk[16]) {
   R51(b1, c1, d1, e1, a1, w[13], 6);
   R52(b2, c2, d2, e2, a2, w[11], 11);
 
-  // Combine results
+  // Combine results following RIPEMD-160 specification
   __m512i t = state[0];
   state[0] = add3(state[1], c1, d2);
   state[1] = add3(state[2], d1, e2);
@@ -273,10 +273,11 @@ void Transform(__m512i state[5], uint8_t *blk[16]) {
   state[4] = add3(t, b1, c2);
 }
 
-static const uint64_t sizedesc_32 = 32 << 3;
-static const unsigned char pad[64] = {0x80};
+// Constants for message padding
+static const uint64_t sizedesc_32 = 32ULL << 3;  // 32 bytes * 8 bits
+static const unsigned char pad[64] = {0x80, 0};
 
-// POPRAWKA: Naprawiono indeksy w funkcji DEPACK
+// Fixed result extraction macro
 #define DEPACK(d, idx)                    \
   do {                                    \
     uint32_t *s0 = (uint32_t *)&state[0]; \
@@ -291,7 +292,7 @@ static const unsigned char pad[64] = {0x80};
     ((uint32_t *)d)[4] = s4[15 - idx];    \
   } while (0)
 
-// Main hashing function
+// Main RIPEMD-160 hashing function for 16 parallel 32-byte inputs
 void ripemd160avx512_32(unsigned char *i0, unsigned char *i1, unsigned char *i2, unsigned char *i3,
                         unsigned char *i4, unsigned char *i5, unsigned char *i6, unsigned char *i7,
                         unsigned char *i8, unsigned char *i9, unsigned char *i10,
@@ -303,19 +304,23 @@ void ripemd160avx512_32(unsigned char *i0, unsigned char *i1, unsigned char *i2,
                         unsigned char *d12, unsigned char *d13, unsigned char *d14,
                         unsigned char *d15) {
   __m512i state[5];
-  uint8_t *bs[] = {i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15};
+  uint8_t *blocks[] = {i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15};
 
+  // Initialize RIPEMD-160 state
   Initialize(state);
 
-  // Prepare padded message blocks
+  // Prepare message blocks with proper padding
   for (int i = 0; i < 16; ++i) {
-    memcpy(bs[i] + 32, pad, 24);
-    memcpy(bs[i] + 56, &sizedesc_32, 8);
+    // Copy padding: 0x80 followed by zeros
+    memcpy(blocks[i] + 32, pad, 24);
+    // Copy 64-bit message length (32 bytes * 8 = 256 bits) in little-endian
+    memcpy(blocks[i] + 56, &sizedesc_32, 8);
   }
 
-  Transform(state, bs);
+  // Process all blocks
+  Transform(state, blocks);
 
-  // Store results z poprawionymi indeksami
+  // Extract results for each input block
   DEPACK(d0, 0);
   DEPACK(d1, 1);
   DEPACK(d2, 2);
