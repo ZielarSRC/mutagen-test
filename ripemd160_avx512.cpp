@@ -37,7 +37,7 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
     0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul,
     0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul};
 
-// AVX-512 optimized operations with proper intrinsics
+// AVX-512 optimized operations
 #define ROL(x, n) _mm512_rol_epi32(x, n)
 
 // RIPEMD-160 functions using AVX-512 ternary logic
@@ -51,7 +51,7 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define add3(x0, x1, x2) _mm512_add_epi32(_mm512_add_epi32(x0, x1), x2)
 #define add4(x0, x1, x2, x3) _mm512_add_epi32(_mm512_add_epi32(x0, x1), _mm512_add_epi32(x2, x3))
 
-// Fixed Round macro with proper variable usage
+// Round macro with local variable declaration
 #define Round(a, b, c, d, e, f, x, k, r)             \
   do {                                               \
     __m512i u = add4(a, f, x, _mm512_set1_epi32(k)); \
@@ -71,20 +71,21 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define R42(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x7A6D76E9ul, r)
 #define R52(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 
-// Fixed data loading macro with proper endianness handling
-#define LOADW(i)                                                                                 \
-  _mm512_set_epi32(((uint32_t *)blk[15])[i], ((uint32_t *)blk[14])[i], ((uint32_t *)blk[13])[i], \
-                   ((uint32_t *)blk[12])[i], ((uint32_t *)blk[11])[i], ((uint32_t *)blk[10])[i], \
-                   ((uint32_t *)blk[9])[i], ((uint32_t *)blk[8])[i], ((uint32_t *)blk[7])[i],    \
-                   ((uint32_t *)blk[6])[i], ((uint32_t *)blk[5])[i], ((uint32_t *)blk[4])[i],    \
-                   ((uint32_t *)blk[3])[i], ((uint32_t *)blk[2])[i], ((uint32_t *)blk[1])[i],    \
-                   ((uint32_t *)blk[0])[i])
+// Load message data with proper byte order handling
+#define LOADW(i)                                                                             \
+  _mm512_set_epi32(                                                                          \
+      ((uint32_t *)inputs[15])[i], ((uint32_t *)inputs[14])[i], ((uint32_t *)inputs[13])[i], \
+      ((uint32_t *)inputs[12])[i], ((uint32_t *)inputs[11])[i], ((uint32_t *)inputs[10])[i], \
+      ((uint32_t *)inputs[9])[i], ((uint32_t *)inputs[8])[i], ((uint32_t *)inputs[7])[i],    \
+      ((uint32_t *)inputs[6])[i], ((uint32_t *)inputs[5])[i], ((uint32_t *)inputs[4])[i],    \
+      ((uint32_t *)inputs[3])[i], ((uint32_t *)inputs[2])[i], ((uint32_t *)inputs[1])[i],    \
+      ((uint32_t *)inputs[0])[i])
 
 // Initialize RIPEMD-160 state
 void Initialize(__m512i state[5]) { memcpy(state, _init, sizeof(_init)); }
 
 // Process 16 message blocks simultaneously
-void Transform(__m512i state[5], uint8_t *blk[16]) {
+void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   __m512i a1 = state[0], b1 = state[1], c1 = state[2], d1 = state[3], e1 = state[4];
   __m512i a2 = a1, b2 = b1, c2 = c1, d2 = d1, e2 = e1;
   __m512i w[16];
@@ -273,70 +274,35 @@ void Transform(__m512i state[5], uint8_t *blk[16]) {
   state[4] = add3(t, b1, c2);
 }
 
-// Constants for message padding
-static const uint64_t sizedesc_32 = 32ULL << 3;  // 32 bytes * 8 bits
-static const unsigned char pad[64] = {0x80, 0};
-
-// Fixed result extraction macro
-#define DEPACK(d, idx)                    \
-  do {                                    \
-    uint32_t *s0 = (uint32_t *)&state[0]; \
-    uint32_t *s1 = (uint32_t *)&state[1]; \
-    uint32_t *s2 = (uint32_t *)&state[2]; \
-    uint32_t *s3 = (uint32_t *)&state[3]; \
-    uint32_t *s4 = (uint32_t *)&state[4]; \
-    ((uint32_t *)d)[0] = s0[15 - idx];    \
-    ((uint32_t *)d)[1] = s1[15 - idx];    \
-    ((uint32_t *)d)[2] = s2[15 - idx];    \
-    ((uint32_t *)d)[3] = s3[15 - idx];    \
-    ((uint32_t *)d)[4] = s4[15 - idx];    \
+// Result extraction macro with proper indexing
+#define DEPACK(outputs, idx)                      \
+  do {                                            \
+    uint32_t *s0 = (uint32_t *)&state[0];         \
+    uint32_t *s1 = (uint32_t *)&state[1];         \
+    uint32_t *s2 = (uint32_t *)&state[2];         \
+    uint32_t *s3 = (uint32_t *)&state[3];         \
+    uint32_t *s4 = (uint32_t *)&state[4];         \
+    ((uint32_t *)outputs[idx])[0] = s0[15 - idx]; \
+    ((uint32_t *)outputs[idx])[1] = s1[15 - idx]; \
+    ((uint32_t *)outputs[idx])[2] = s2[15 - idx]; \
+    ((uint32_t *)outputs[idx])[3] = s3[15 - idx]; \
+    ((uint32_t *)outputs[idx])[4] = s4[15 - idx]; \
   } while (0)
 
-// Main RIPEMD-160 hashing function for 16 parallel 32-byte inputs
-void ripemd160avx512_32(unsigned char *i0, unsigned char *i1, unsigned char *i2, unsigned char *i3,
-                        unsigned char *i4, unsigned char *i5, unsigned char *i6, unsigned char *i7,
-                        unsigned char *i8, unsigned char *i9, unsigned char *i10,
-                        unsigned char *i11, unsigned char *i12, unsigned char *i13,
-                        unsigned char *i14, unsigned char *i15, unsigned char *d0,
-                        unsigned char *d1, unsigned char *d2, unsigned char *d3, unsigned char *d4,
-                        unsigned char *d5, unsigned char *d6, unsigned char *d7, unsigned char *d8,
-                        unsigned char *d9, unsigned char *d10, unsigned char *d11,
-                        unsigned char *d12, unsigned char *d13, unsigned char *d14,
-                        unsigned char *d15) {
+// Main RIPEMD-160 hashing function compatible with original interface
+void ripemd160avx512_16(const uint8_t *inputs[16], uint8_t *outputs[16]) {
   __m512i state[5];
-  uint8_t *blocks[] = {i0, i1, i2, i3, i4, i5, i6, i7, i8, i9, i10, i11, i12, i13, i14, i15};
 
   // Initialize RIPEMD-160 state
   Initialize(state);
 
-  // Prepare message blocks with proper padding
-  for (int i = 0; i < 16; ++i) {
-    // Copy padding: 0x80 followed by zeros
-    memcpy(blocks[i] + 32, pad, 24);
-    // Copy 64-bit message length (32 bytes * 8 = 256 bits) in little-endian
-    memcpy(blocks[i] + 56, &sizedesc_32, 8);
-  }
-
   // Process all blocks
-  Transform(state, blocks);
+  Transform(state, inputs);
 
   // Extract results for each input block
-  DEPACK(d0, 0);
-  DEPACK(d1, 1);
-  DEPACK(d2, 2);
-  DEPACK(d3, 3);
-  DEPACK(d4, 4);
-  DEPACK(d5, 5);
-  DEPACK(d6, 6);
-  DEPACK(d7, 7);
-  DEPACK(d8, 8);
-  DEPACK(d9, 9);
-  DEPACK(d10, 10);
-  DEPACK(d11, 11);
-  DEPACK(d12, 12);
-  DEPACK(d13, 13);
-  DEPACK(d14, 14);
-  DEPACK(d15, 15);
+  for (int i = 0; i < 16; i++) {
+    DEPACK(outputs, i);
+  }
 }
 
 }  // namespace ripemd160avx512
