@@ -1,21 +1,35 @@
-#ifndef INTGROUPH
-#define INTGROUPH
+#include <immintrin.h>
 
-#include <cstdlib>  // Dodano dla size_t
+#include <cstdlib>
 
-#include "Int.h"
+#include "IntGroup.h"
 
-class IntGroup {
- public:
-  IntGroup(int size);
-  ~IntGroup();
-  void Set(Int *pts);
-  void ModInv();
+IntGroup::IntGroup(int size) {
+  this->size = size;
+  subp = (Int *)_mm_malloc(size * sizeof(Int), 64);
+}
 
- private:
-  Int *ints;
-  Int *subp;
-  int size;
-};
+IntGroup::~IntGroup() { _mm_free(subp); }
 
-#endif  // INTGROUPH
+void IntGroup::Set(Int *pts) { ints = pts; }
+
+void IntGroup::ModInv() {
+  Int newValue;
+  Int inverse;
+
+  subp[0].Set(&ints[0]);
+  for (int i = 1; i < size; i++) {
+    subp[i].ModMulK1(&subp[i - 1], &ints[i]);
+  }
+
+  inverse.Set(&subp[size - 1]);
+  inverse.ModInv();
+
+  for (int i = size - 1; i > 0; i--) {
+    newValue.ModMulK1(&subp[i - 1], &inverse);
+    inverse.ModMulK1(&inverse, &ints[i]);
+    ints[i].Set(&newValue);
+  }
+
+  ints[0].Set(&inverse);
+}
