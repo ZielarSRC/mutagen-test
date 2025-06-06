@@ -7,51 +7,17 @@
 
 namespace ripemd160avx512 {
 
-#ifdef WIN64
-static const __declspec(align(64)) uint32_t _init[] = {
-#else
-static const uint32_t _init[] __attribute__((aligned(64))) = {
-#endif
-    // 16 copies of A
-    0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul,
-    0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul,
-    0x67452301ul, 0x67452301ul, 0x67452301ul, 0x67452301ul,
-
-    // 16 copies of B
-    0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul,
-    0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul,
-    0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul, 0xEFCDAB89ul,
-
-    // 16 copies of C
-    0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul,
-    0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul,
-    0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul, 0x98BADCFEul,
-
-    // 16 copies of D
-    0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul,
-    0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul,
-    0x10325476ul, 0x10325476ul, 0x10325476ul, 0x10325476ul,
-
-    // 16 copies of E
-    0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul,
-    0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul,
-    0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul, 0xC3D2E1F0ul};
-
-// AVX-512 optimized operations
 #define ROL(x, n) _mm512_rol_epi32(x, n)
 
-// RIPEMD-160 functions using AVX-512 ternary logic
 #define f1(x, y, z) _mm512_xor_si512(x, _mm512_xor_si512(y, z))
-#define f2(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0xCA)  // (x & y) | (~x & z)
-#define f3(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x96)  // (x | ~y) ^ z
-#define f4(x, y, z) _mm512_ternarylogic_epi32(x, z, y, 0xAC)  // (x & z) | (y & ~z)
-#define f5(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x3C)  // x ^ (y | ~z)
+#define f2(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0xCA)
+#define f3(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x96)
+#define f4(x, y, z) _mm512_ternarylogic_epi32(x, z, y, 0xAC)
+#define f5(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x3C)
 
-// Efficient addition helpers
 #define add3(x0, x1, x2) _mm512_add_epi32(_mm512_add_epi32(x0, x1), x2)
 #define add4(x0, x1, x2, x3) _mm512_add_epi32(_mm512_add_epi32(x0, x1), _mm512_add_epi32(x2, x3))
 
-// Round macro with local variable declaration
 #define Round(a, b, c, d, e, f, x, k, r)             \
   do {                                               \
     __m512i u = add4(a, f, x, _mm512_set1_epi32(k)); \
@@ -59,7 +25,6 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
     c = ROL(c, 10);                                  \
   } while (0)
 
-// Round macros with proper function usage
 #define R11(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 #define R21(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x5A827999ul, r)
 #define R31(a, b, c, d, e, x, r) Round(a, b, c, d, e, f3(b, c, d), x, 0x6ED9EBA1ul, r)
@@ -71,31 +36,29 @@ static const uint32_t _init[] __attribute__((aligned(64))) = {
 #define R42(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x7A6D76E9ul, r)
 #define R52(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 
-// Load message data with proper byte order handling
-#define LOADW(i)                                                                             \
-  _mm512_set_epi32(                                                                          \
-      ((uint32_t *)inputs[15])[i], ((uint32_t *)inputs[14])[i], ((uint32_t *)inputs[13])[i], \
-      ((uint32_t *)inputs[12])[i], ((uint32_t *)inputs[11])[i], ((uint32_t *)inputs[10])[i], \
-      ((uint32_t *)inputs[9])[i], ((uint32_t *)inputs[8])[i], ((uint32_t *)inputs[7])[i],    \
-      ((uint32_t *)inputs[6])[i], ((uint32_t *)inputs[5])[i], ((uint32_t *)inputs[4])[i],    \
-      ((uint32_t *)inputs[3])[i], ((uint32_t *)inputs[2])[i], ((uint32_t *)inputs[1])[i],    \
-      ((uint32_t *)inputs[0])[i])
+void ripemd160avx512_16(const uint8_t* inputs[16], uint8_t* outputs[16]) {
+  // Inicjalizacja RIPEMD-160
+  __m512i a1 = _mm512_set1_epi32(0x67452301ul);
+  __m512i b1 = _mm512_set1_epi32(0xEFCDAB89ul);
+  __m512i c1 = _mm512_set1_epi32(0x98BADCFEul);
+  __m512i d1 = _mm512_set1_epi32(0x10325476ul);
+  __m512i e1 = _mm512_set1_epi32(0xC3D2E1F0ul);
 
-// Initialize RIPEMD-160 state
-void Initialize(__m512i state[5]) { memcpy(state, _init, sizeof(_init)); }
-
-// Process 16 message blocks simultaneously
-void Transform(__m512i state[5], const uint8_t *inputs[16]) {
-  __m512i a1 = state[0], b1 = state[1], c1 = state[2], d1 = state[3], e1 = state[4];
   __m512i a2 = a1, b2 = b1, c2 = c1, d2 = d1, e2 = e1;
-  __m512i w[16];
 
-  // Load all 16 message words
-  for (int i = 0; i < 16; ++i) {
-    w[i] = LOADW(i);
+  // Ładowanie danych wejściowych
+  __m512i w[16];
+  for (int i = 0; i < 16; i++) {
+    w[i] = _mm512_set_epi32(
+        ((uint32_t*)inputs[15])[i], ((uint32_t*)inputs[14])[i], ((uint32_t*)inputs[13])[i],
+        ((uint32_t*)inputs[12])[i], ((uint32_t*)inputs[11])[i], ((uint32_t*)inputs[10])[i],
+        ((uint32_t*)inputs[9])[i], ((uint32_t*)inputs[8])[i], ((uint32_t*)inputs[7])[i],
+        ((uint32_t*)inputs[6])[i], ((uint32_t*)inputs[5])[i], ((uint32_t*)inputs[4])[i],
+        ((uint32_t*)inputs[3])[i], ((uint32_t*)inputs[2])[i], ((uint32_t*)inputs[1])[i],
+        ((uint32_t*)inputs[0])[i]);
   }
 
-  // Round 1 - Left path and right path interleaved
+  // RIPEMD-160 rundy - identyczne z oryginalem
   R11(a1, b1, c1, d1, e1, w[0], 11);
   R12(a2, b2, c2, d2, e2, w[5], 8);
   R11(e1, a1, b1, c1, d1, w[1], 14);
@@ -129,7 +92,6 @@ void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   R11(a1, b1, c1, d1, e1, w[15], 8);
   R12(a2, b2, c2, d2, e2, w[12], 6);
 
-  // Round 2
   R21(e1, a1, b1, c1, d1, w[7], 7);
   R22(e2, a2, b2, c2, d2, w[6], 9);
   R21(d1, e1, a1, b1, c1, w[4], 6);
@@ -163,7 +125,6 @@ void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   R21(e1, a1, b1, c1, d1, w[8], 12);
   R22(e2, a2, b2, c2, d2, w[2], 11);
 
-  // Round 3
   R31(d1, e1, a1, b1, c1, w[3], 11);
   R32(d2, e2, a2, b2, c2, w[15], 9);
   R31(c1, d1, e1, a1, b1, w[10], 13);
@@ -197,7 +158,6 @@ void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   R31(d1, e1, a1, b1, c1, w[12], 5);
   R32(d2, e2, a2, b2, c2, w[13], 5);
 
-  // Round 4
   R41(c1, d1, e1, a1, b1, w[1], 11);
   R42(c2, d2, e2, a2, b2, w[8], 15);
   R41(b1, c1, d1, e1, a1, w[9], 12);
@@ -231,7 +191,6 @@ void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   R41(c1, d1, e1, a1, b1, w[2], 12);
   R42(c2, d2, e2, a2, b2, w[14], 8);
 
-  // Round 5
   R51(b1, c1, d1, e1, a1, w[4], 9);
   R52(b2, c2, d2, e2, a2, w[12], 8);
   R51(a1, b1, c1, d1, e1, w[0], 15);
@@ -265,43 +224,34 @@ void Transform(__m512i state[5], const uint8_t *inputs[16]) {
   R51(b1, c1, d1, e1, a1, w[13], 6);
   R52(b2, c2, d2, e2, a2, w[11], 11);
 
-  // Combine results following RIPEMD-160 specification
-  __m512i t = state[0];
-  state[0] = add3(state[1], c1, d2);
-  state[1] = add3(state[2], d1, e2);
-  state[2] = add3(state[3], e1, a2);
-  state[3] = add3(state[4], a1, b2);
-  state[4] = add3(t, b1, c2);
-}
+  // Łączenie wyników RIPEMD-160
+  __m512i init_a = _mm512_set1_epi32(0x67452301ul);
+  __m512i init_b = _mm512_set1_epi32(0xEFCDAB89ul);
+  __m512i init_c = _mm512_set1_epi32(0x98BADCFEul);
+  __m512i init_d = _mm512_set1_epi32(0x10325476ul);
+  __m512i init_e = _mm512_set1_epi32(0xC3D2E1F0ul);
 
-// Result extraction macro with proper indexing
-#define DEPACK(outputs, idx)                      \
-  do {                                            \
-    uint32_t *s0 = (uint32_t *)&state[0];         \
-    uint32_t *s1 = (uint32_t *)&state[1];         \
-    uint32_t *s2 = (uint32_t *)&state[2];         \
-    uint32_t *s3 = (uint32_t *)&state[3];         \
-    uint32_t *s4 = (uint32_t *)&state[4];         \
-    ((uint32_t *)outputs[idx])[0] = s0[15 - idx]; \
-    ((uint32_t *)outputs[idx])[1] = s1[15 - idx]; \
-    ((uint32_t *)outputs[idx])[2] = s2[15 - idx]; \
-    ((uint32_t *)outputs[idx])[3] = s3[15 - idx]; \
-    ((uint32_t *)outputs[idx])[4] = s4[15 - idx]; \
-  } while (0)
+  __m512i t = init_a;
+  __m512i final_a = add3(init_b, c1, d2);
+  __m512i final_b = add3(init_c, d1, e2);
+  __m512i final_c = add3(init_d, e1, a2);
+  __m512i final_d = add3(init_e, a1, b2);
+  __m512i final_e = add3(t, b1, c2);
 
-// Main RIPEMD-160 hashing function compatible with original interface
-void ripemd160avx512_16(const uint8_t *inputs[16], uint8_t *outputs[16]) {
-  __m512i state[5];
+  // Wyodrębnianie wyników
+  alignas(64) uint32_t state_a[16], state_b[16], state_c[16], state_d[16], state_e[16];
+  _mm512_store_epi32(state_a, final_a);
+  _mm512_store_epi32(state_b, final_b);
+  _mm512_store_epi32(state_c, final_c);
+  _mm512_store_epi32(state_d, final_d);
+  _mm512_store_epi32(state_e, final_e);
 
-  // Initialize RIPEMD-160 state
-  Initialize(state);
-
-  // Process all blocks
-  Transform(state, inputs);
-
-  // Extract results for each input block
   for (int i = 0; i < 16; i++) {
-    DEPACK(outputs, i);
+    ((uint32_t*)outputs[i])[0] = state_a[15 - i];
+    ((uint32_t*)outputs[i])[1] = state_b[15 - i];
+    ((uint32_t*)outputs[i])[2] = state_c[15 - i];
+    ((uint32_t*)outputs[i])[3] = state_d[15 - i];
+    ((uint32_t*)outputs[i])[4] = state_e[15 - i];
   }
 }
 
