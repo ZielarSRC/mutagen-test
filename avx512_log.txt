@@ -1,0 +1,59 @@
+========== MUTAGEN ALGORITHM ANALYSIS ==========
+Start Time: [00:00:00]
+Purpose: Understand how bit flipping mutation works
+=================================================
+[00:00:00] [PROGRAM_START] Mutagen AVX512 Puzzle Solver - Algorithm Analysis Mode
+[00:00:00] [ALGORITHM] ALGORITHM_SETUP: Puzzle 22 with 11 bit flips
+[00:00:00] [ALGORITHM] BASE_KEY: Starting from key: 0x1BA534 (decimal: 1811764)
+[00:00:00] [ALGORITHM] TARGET: Looking for hash160: 7ff45303774ef7a52fffd8011981034b258cb86b
+[00:00:00] [ALGORITHM] COMBINATIONS: Total combinations to test: 705432
+[00:00:00] [ALGORITHM] MUTATION_STRATEGY: Will flip 11 bits out of 22 available bit positions
+[00:00:00] [WORKER_START] Thread 0 starts processing combinations 0 to 352716
+[00:00:00] [COMBINATION_GEN] Thread0 | Index: 0 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+[00:00:00] [WORKER_START] Thread 1 starts processing combinations 352716 to 705432
+[00:00:00] [COMBINATION_GEN] Thread1 | Index: 352716 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+[00:00:00] === KEY MUTATION STEP ===
+Thread: 1 | Combination #0
+Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
+Base Key (dec): 1811764
+Bit positions to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+After flipping bits: 00000000000000000000000000000000000000000000000000000000001BAACA
+Mutated Key (dec): 1813194
+XOR difference: 0x0000000000000000000000000000000000000000000000000000000000000FFE
+=========================
+
+[00:00:00] === KEY MUTATION STEP ===
+Thread: 0 | Combination #0
+Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
+Base Key (dec): 1811764
+Bit positions to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+After flipping bits: 00000000000000000000000000000000000000000000000000000000001BA2CB
+Mutated Key (dec): 1811147
+XOR difference: 0x00000000000000000000000000000000000000000000000000000000000007FF
+=========================
+[00:00:00] [HASH_COMPARE] Thread1 Combination #0
+Target Hash: 7ff45303774ef7a52fffd8011981034b258cb86b
+[00:00:00] [HASH_COMPARE] Thread0 Combination #0
+Target Hash: 7ff45303774ef7a52fffd8011981034b258cb86b
+Hash[0]: 381539380ff991027cbfc00daf5ee90dd78f40d5
+Hash[0]: 2299ac1ac6002e7e02170e6ed44beb1bb43425c4
+Hash[1]: 27b420e3d304c09e519ac8aacc55393d2e7831b8
+Hash[1]: c2b154101aeda2b11592748e6f40685526231ba2
+Hash[2]: ab586cec5b222aec5277e4b1dd5fc2b329a2da43
+Hash[2]: 936167995782030a4986c20cac93c72d65d51430
+Hash[3]: 49bb9adc8029af119354e2ec07a020474427c18b
+Hash[3]: 124fa2c8983809d68a50ad4e671ec0e4c5cdb57f
+Hash[4]: e07f29f552372b8701ff5bbbff7ea05f20afd760
+Hash[4]: c4983fc1f240ef414198d61ef7bb569ca7c46fd9
+[00:00:00] [HASH_COMPARE] Thread1 Combination #0
+Target Hash: 7ff45303774ef7a52fffd8011981034b258cb86b
+[00:00:00] [HASH_COMPARE] Thread0 Combination #0
+Target Hash: 7ff45303774ef7a52fffd8011981034b258cb86b
+Hash[0]: f1467739f8ba011316295da33f5912710498921f
+Hash[0]: d95ede7f243584490ce59c7befd41b2fbb79f748
+Hash[1]: 65daf773d33aba3435b1ec59e5b5dfcc476f97dc
+Hash[1]: 486c5d24e2388ecee68c72668ff4694413f1bf92
+Hash[2]: e0bc15e27d59afcf641e7ddb171c21cc4febe769
+Hash[2]: 7adc2878856b188e4acf8c84ef5943c181320433
+...
