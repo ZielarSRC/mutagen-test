@@ -140,6 +140,11 @@ void Int::DivStep62(Int *u, Int *v, int64_t *eta, int *pos, int64_t *uu, int64_t
   uint64_t w, x;
   unsigned char c = 0;
 
+#define SWAP(tmp, x, y) \
+  tmp = x;              \
+  x = y;                \
+  y = tmp;
+
   while (*pos >= 1 && (u->bits64[*pos] | v->bits64[*pos]) == 0) (*pos)--;
   if (*pos == 0) {
     uh = u->bits64[0];
@@ -184,22 +189,11 @@ void Int::DivStep62(Int *u, Int *v, int64_t *eta, int *pos, int64_t *uu, int64_t
       break;
     }
 
-    // Branchless swap
-    uint64_t mask = (vh < uh) ? UINT64_MAX : 0;
-    uint64_t t_uh = (mask & vh) | (~mask & uh);
-    uint64_t t_vh = (mask & uh) | (~mask & vh);
-    uh = t_uh;
-    vh = t_vh;
-
-    uint64_t t_u0 = (mask & v0) | (~mask & u0);
-    uint64_t t_v0 = (mask & u0) | (~mask & v0);
-    u0 = t_u0;
-    v0 = t_v0;
-
-    __m128i mask128 = _mm_set1_epi64x((int64_t)mask);
-    __m128i t = _u;
-    _u = _mm_blendv_epi8(_u, _v, mask128);
-    _v = _mm_blendv_epi8(_v, t, mask128);
+    if (vh < uh) {
+      SWAP(w, uh, vh);
+      SWAP(x, u0, v0);
+      SWAP(_t, _u, _v);
+    }
 
     vh -= uh;
     v0 -= u0;
@@ -572,39 +566,39 @@ void Int::ModMulK1(Int *a, Int *b) {
   // 256*256 multiplier
   imm_umul(a->bits64, b->bits64[0], r512);
   imm_umul(a->bits64, b->bits64[1], t);
-  carry1 = _addcarryx_u64(0, r512[1], t[0], (unsigned long long *)(r512 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], t[1], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[2], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[3], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[4], (unsigned long long *)(r512 + 5));
+  carry1 = _addcarry_u64(0, r512[1], t[0], r512 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], t[1], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[2], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[3], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[4], r512 + 5);
 
   imm_umul(a->bits64, b->bits64[2], t);
-  carry1 = _addcarryx_u64(0, r512[2], t[0], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[1], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[2], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[3], (unsigned long long *)(r512 + 5));
-  carry1 = _addcarryx_u64(carry1, r512[6], t[4], (unsigned long long *)(r512 + 6));
+  carry1 = _addcarry_u64(0, r512[2], t[0], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[1], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[2], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[3], r512 + 5);
+  carry1 = _addcarry_u64(carry1, r512[6], t[4], r512 + 6);
 
   imm_umul(a->bits64, b->bits64[3], t);
-  carry1 = _addcarryx_u64(0, r512[3], t[0], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[1], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[2], (unsigned long long *)(r512 + 5));
-  carry1 = _addcarryx_u64(carry1, r512[6], t[3], (unsigned long long *)(r512 + 6));
-  carry1 = _addcarryx_u64(carry1, r512[7], t[4], (unsigned long long *)(r512 + 7));
+  carry1 = _addcarry_u64(0, r512[3], t[0], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[1], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[2], r512 + 5);
+  carry1 = _addcarry_u64(carry1, r512[6], t[3], r512 + 6);
+  carry1 = _addcarry_u64(carry1, r512[7], t[4], r512 + 7);
 
   // Reduce from 512 to 320
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
-  carry1 = _addcarryx_u64(0, r512[0], t[0], (unsigned long long *)(r512 + 0));
-  carry1 = _addcarryx_u64(carry1, r512[1], t[1], (unsigned long long *)(r512 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], t[2], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[3], (unsigned long long *)(r512 + 3));
+  carry1 = _addcarry_u64(0, r512[0], t[0], r512 + 0);
+  carry1 = _addcarry_u64(carry1, r512[1], t[1], r512 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], t[2], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[3], r512 + 3);
 
   // Reduce from 320 to 256
   al = _umul128(t[4] + carry1, 0x1000003D1ULL, &ah);
-  carry1 = _addcarryx_u64(0, r512[0], al, (unsigned long long *)(bits64 + 0));
-  carry2 = _addcarryx_u64(0, r512[1], ah, (unsigned long long *)(bits64 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], 0ULL, (unsigned long long *)(bits64 + 2));
-  carry2 = _addcarryx_u64(carry2, r512[3], 0ULL, (unsigned long long *)(bits64 + 3));
+  carry1 = _addcarry_u64(0, r512[0], al, bits64 + 0);
+  carry2 = _addcarry_u64(0, r512[1], ah, bits64 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], 0ULL, bits64 + 2);
+  carry2 = _addcarry_u64(carry2, r512[3], 0ULL, bits64 + 3);
 
   bits64[4] = 0;
 #if BISIZE == 512
@@ -629,37 +623,37 @@ void Int::ModMulK1(Int *a) {
 
   imm_umul(a->bits64, bits64[0], r512);
   imm_umul(a->bits64, bits64[1], t);
-  carry1 = _addcarryx_u64(0, r512[1], t[0], (unsigned long long *)(r512 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], t[1], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[2], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[3], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[4], (unsigned long long *)(r512 + 5));
+  carry1 = _addcarry_u64(0, r512[1], t[0], r512 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], t[1], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[2], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[3], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[4], r512 + 5);
 
   imm_umul(a->bits64, bits64[2], t);
-  carry1 = _addcarryx_u64(0, r512[2], t[0], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[1], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[2], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[3], (unsigned long long *)(r512 + 5));
-  carry1 = _addcarryx_u64(carry1, r512[6], t[4], (unsigned long long *)(r512 + 6));
+  carry1 = _addcarry_u64(0, r512[2], t[0], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[1], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[2], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[3], r512 + 5);
+  carry1 = _addcarry_u64(carry1, r512[6], t[4], r512 + 6);
 
   imm_umul(a->bits64, bits64[3], t);
-  carry1 = _addcarryx_u64(0, r512[3], t[0], (unsigned long long *)(r512 + 3));
-  carry1 = _addcarryx_u64(carry1, r512[4], t[1], (unsigned long long *)(r512 + 4));
-  carry1 = _addcarryx_u64(carry1, r512[5], t[2], (unsigned long long *)(r512 + 5));
-  carry1 = _addcarryx_u64(carry1, r512[6], t[3], (unsigned long long *)(r512 + 6));
-  carry1 = _addcarryx_u64(carry1, r512[7], t[4], (unsigned long long *)(r512 + 7));
+  carry1 = _addcarry_u64(0, r512[3], t[0], r512 + 3);
+  carry1 = _addcarry_u64(carry1, r512[4], t[1], r512 + 4);
+  carry1 = _addcarry_u64(carry1, r512[5], t[2], r512 + 5);
+  carry1 = _addcarry_u64(carry1, r512[6], t[3], r512 + 6);
+  carry1 = _addcarry_u64(carry1, r512[7], t[4], r512 + 7);
 
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
-  carry1 = _addcarryx_u64(0, r512[0], t[0], (unsigned long long *)(r512 + 0));
-  carry1 = _addcarryx_u64(carry1, r512[1], t[1], (unsigned long long *)(r512 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], t[2], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[3], (unsigned long long *)(r512 + 3));
+  carry1 = _addcarry_u64(0, r512[0], t[0], r512 + 0);
+  carry1 = _addcarry_u64(carry1, r512[1], t[1], r512 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], t[2], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[3], r512 + 3);
 
   al = _umul128(t[4] + carry1, 0x1000003D1ULL, &ah);
-  carry1 = _addcarryx_u64(0, r512[0], al, (unsigned long long *)(bits64 + 0));
-  carry2 = _addcarryx_u64(0, r512[1], ah, (unsigned long long *)(bits64 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], 0, (unsigned long long *)(bits64 + 2));
-  carry2 = _addcarryx_u64(carry2, r512[3], 0, (unsigned long long *)(bits64 + 3));
+  carry1 = _addcarry_u64(0, r512[0], al, bits64 + 0);
+  carry2 = _addcarry_u64(0, r512[1], ah, bits64 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], 0, bits64 + 2);
+  carry2 = _addcarry_u64(carry2, r512[3], 0, bits64 + 3);
   bits64[4] = 0;
 #if BISIZE == 512
   bits64[5] = 0;
@@ -686,84 +680,84 @@ void Int::ModSquareK1(Int *a) {
   r512[0] = _umul128(a->bits64[0], a->bits64[0], &t[1]);
 
   t[3] = _umul128(a->bits64[0], a->bits64[1], &t[4]);
-  carry1 = _addcarryx_u64(0, t[3], t[3], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], t[4], (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, 0, 0, (unsigned long long *)&t1);
-  carry1 = _addcarryx_u64(0, t[1], t[3], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], 0, (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, t1, 0, (unsigned long long *)&t1);
+  carry1 = _addcarry_u64(0, t[3], t[3], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], t[4], &t[4]);
+  carry1 = _addcarry_u64(carry1, 0, 0, &t1);
+  carry1 = _addcarry_u64(0, t[1], t[3], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], 0, &t[4]);
+  carry1 = _addcarry_u64(carry1, t1, 0, &t1);
   r512[1] = t[3];
 
   t[0] = _umul128(a->bits64[0], a->bits64[2], &t[1]);
-  carry1 = _addcarryx_u64(0, t[0], t[0], (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], t[1], (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, 0, 0, (unsigned long long *)&t2);
+  carry1 = _addcarry_u64(0, t[0], t[0], &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], t[1], &t[1]);
+  carry1 = _addcarry_u64(carry1, 0, 0, &t2);
 
   u10 = _umul128(a->bits64[1], a->bits64[1], &u11);
-  carry1 = _addcarryx_u64(0, t[0], u10, (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], u11, (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, t2, 0, (unsigned long long *)&t2);
-  carry1 = _addcarryx_u64(0, t[0], t[4], (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], t1, (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, t2, 0, (unsigned long long *)&t2);
+  carry1 = _addcarry_u64(0, t[0], u10, &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], u11, &t[1]);
+  carry1 = _addcarry_u64(carry1, t2, 0, &t2);
+  carry1 = _addcarry_u64(0, t[0], t[4], &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], t1, &t[1]);
+  carry1 = _addcarry_u64(carry1, t2, 0, &t2);
   r512[2] = t[0];
 
   t[3] = _umul128(a->bits64[0], a->bits64[3], &t[4]);
   u10 = _umul128(a->bits64[1], a->bits64[2], &u11);
 
-  carry1 = _addcarryx_u64(0, t[3], u10, (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], u11, (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, 0, 0, (unsigned long long *)&t1);
+  carry1 = _addcarry_u64(0, t[3], u10, &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], u11, &t[4]);
+  carry1 = _addcarry_u64(carry1, 0, 0, &t1);
   t1 += t1;
-  carry1 = _addcarryx_u64(0, t[3], t[3], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], t[4], (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, t1, 0, (unsigned long long *)&t1);
-  carry1 = _addcarryx_u64(0, t[3], t[1], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], t2, (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, t1, 0, (unsigned long long *)&t1);
+  carry1 = _addcarry_u64(0, t[3], t[3], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], t[4], &t[4]);
+  carry1 = _addcarry_u64(carry1, t1, 0, &t1);
+  carry1 = _addcarry_u64(0, t[3], t[1], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], t2, &t[4]);
+  carry1 = _addcarry_u64(carry1, t1, 0, &t1);
   r512[3] = t[3];
 
   t[0] = _umul128(a->bits64[1], a->bits64[3], &t[1]);
-  carry1 = _addcarryx_u64(0, t[0], t[0], (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], t[1], (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, 0, 0, (unsigned long long *)&t2);
+  carry1 = _addcarry_u64(0, t[0], t[0], &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], t[1], &t[1]);
+  carry1 = _addcarry_u64(carry1, 0, 0, &t2);
 
   u10 = _umul128(a->bits64[2], a->bits64[2], &u11);
-  carry1 = _addcarryx_u64(0, t[0], u10, (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], u11, (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, t2, 0, (unsigned long long *)&t2);
-  carry1 = _addcarryx_u64(0, t[0], t[4], (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], t1, (unsigned long long *)&t[1]);
-  carry1 = _addcarryx_u64(carry1, t2, 0, (unsigned long long *)&t2);
+  carry1 = _addcarry_u64(0, t[0], u10, &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], u11, &t[1]);
+  carry1 = _addcarry_u64(carry1, t2, 0, &t2);
+  carry1 = _addcarry_u64(0, t[0], t[4], &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], t1, &t[1]);
+  carry1 = _addcarry_u64(carry1, t2, 0, &t2);
   r512[4] = t[0];
 
   t[3] = _umul128(a->bits64[2], a->bits64[3], &t[4]);
-  carry1 = _addcarryx_u64(0, t[3], t[3], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], t[4], (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, 0, 0, (unsigned long long *)&t1);
-  carry1 = _addcarryx_u64(0, t[3], t[1], (unsigned long long *)&t[3]);
-  carry1 = _addcarryx_u64(carry1, t[4], t2, (unsigned long long *)&t[4]);
-  carry1 = _addcarryx_u64(carry1, t1, 0, (unsigned long long *)&t1);
+  carry1 = _addcarry_u64(0, t[3], t[3], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], t[4], &t[4]);
+  carry1 = _addcarry_u64(carry1, 0, 0, &t1);
+  carry1 = _addcarry_u64(0, t[3], t[1], &t[3]);
+  carry1 = _addcarry_u64(carry1, t[4], t2, &t[4]);
+  carry1 = _addcarry_u64(carry1, t1, 0, &t1);
   r512[5] = t[3];
 
   t[0] = _umul128(a->bits64[3], a->bits64[3], &t[1]);
-  carry1 = _addcarryx_u64(0, t[0], t[4], (unsigned long long *)&t[0]);
-  carry1 = _addcarryx_u64(carry1, t[1], t1, (unsigned long long *)&t[1]);
+  carry1 = _addcarry_u64(0, t[0], t[4], &t[0]);
+  carry1 = _addcarry_u64(carry1, t[1], t1, &t[1]);
   r512[6] = t[0];
 
   r512[7] = t[1];
 
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
-  carry1 = _addcarryx_u64(0, r512[0], t[0], (unsigned long long *)(r512 + 0));
-  carry1 = _addcarryx_u64(carry1, r512[1], t[1], (unsigned long long *)(r512 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], t[2], (unsigned long long *)(r512 + 2));
-  carry1 = _addcarryx_u64(carry1, r512[3], t[3], (unsigned long long *)(r512 + 3));
+  carry1 = _addcarry_u64(0, r512[0], t[0], r512 + 0);
+  carry1 = _addcarry_u64(carry1, r512[1], t[1], r512 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], t[2], r512 + 2);
+  carry1 = _addcarry_u64(carry1, r512[3], t[3], r512 + 3);
 
   u10 = _umul128(t[4] + carry1, 0x1000003D1ULL, &u11);
-  carry1 = _addcarryx_u64(0, r512[0], u10, (unsigned long long *)(bits64 + 0));
-  carry2 = _addcarryx_u64(0, r512[1], u11, (unsigned long long *)(bits64 + 1));
-  carry1 = _addcarryx_u64(carry1, r512[2], 0, (unsigned long long *)(bits64 + 2));
-  carry2 = _addcarryx_u64(carry2, r512[3], 0, (unsigned long long *)(bits64 + 3));
+  carry1 = _addcarry_u64(0, r512[0], u10, bits64 + 0);
+  carry2 = _addcarry_u64(0, r512[1], u11, bits64 + 1);
+  carry1 = _addcarry_u64(carry1, r512[2], 0, bits64 + 2);
+  carry2 = _addcarry_u64(carry2, r512[3], 0, bits64 + 3);
   bits64[4] = 0;
 #if BISIZE == 512
   bits64[5] = 0;
