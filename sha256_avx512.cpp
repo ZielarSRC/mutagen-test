@@ -25,19 +25,10 @@ static const uint32_t K[64] = {
 #define Ch(x, y, z) _mm512_ternarylogic_epi32(z, y, x, 0xCA)
 #define Maj(x, y, z) _mm512_ternarylogic_epi32(y, x, z, 0xE8)
 
-#define Round(a, b, c, d, e, f, g, h, Kt, Wt)                                                 \
-  {                                                                                           \
-    __m512i T1 = _mm512_add_epi32(                                                            \
-        h, _mm512_add_epi32(S1(e), _mm512_add_epi32(Ch(e, f, g), _mm512_add_epi32(Kt, Wt)))); \
-    __m512i T2 = _mm512_add_epi32(S0(a), Maj(a, b, c));                                       \
-    d = _mm512_add_epi32(d, T1);                                                              \
-    h = _mm512_add_epi32(T1, T2);                                                             \
-  }
-
 void sha256avx512_16B(const uint8_t* inputs[16], uint8_t* outputs[16]) {
   alignas(64) uint32_t message_schedule[16][16];
 
-  // Load and transpose input data
+  // Ładowanie i transponowanie danych wejściowych
   for (int i = 0; i < 16; i++) {
     for (int j = 0; j < 16; j++) {
       message_schedule[j][i] = __builtin_bswap32(((uint32_t*)inputs[i])[j]);
@@ -46,18 +37,18 @@ void sha256avx512_16B(const uint8_t* inputs[16], uint8_t* outputs[16]) {
 
   __m512i W[64];
 
-  // Load first 16 words
+  // Ładowanie pierwszych 16 słów
   for (int i = 0; i < 16; i++) {
     W[i] = _mm512_load_epi32(message_schedule[i]);
   }
 
-  // Extend the first 16 words into the remaining 48 words
+  // Rozszerzanie pierwszych 16 słów na pozostałe 48 słów
   for (int i = 16; i < 64; i++) {
     W[i] = _mm512_add_epi32(
         _mm512_add_epi32(_mm512_add_epi32(s1(W[i - 2]), W[i - 7]), s0(W[i - 15])), W[i - 16]);
   }
 
-  // Initialize hash values
+  // Inicjalizacja wartości hash
   __m512i a = _mm512_set1_epi32(0x6A09E667);
   __m512i b = _mm512_set1_epi32(0xBB67AE85);
   __m512i c = _mm512_set1_epi32(0x3C6EF372);
@@ -67,24 +58,23 @@ void sha256avx512_16B(const uint8_t* inputs[16], uint8_t* outputs[16]) {
   __m512i g = _mm512_set1_epi32(0x1F83D9AB);
   __m512i h = _mm512_set1_epi32(0x5BE0CD19);
 
-  // Main compression loop
+  // Główna pętla kompresji
   for (int i = 0; i < 64; i++) {
     __m512i Kt = _mm512_set1_epi32(K[i]);
-    Round(a, b, c, d, e, f, g, h, Kt, W[i]);
-
-    // Rotate variables
-    __m512i temp = h;
+    __m512i T1 = _mm512_add_epi32(
+        h, _mm512_add_epi32(S1(e), _mm512_add_epi32(Ch(e, f, g), _mm512_add_epi32(Kt, W[i]))));
+    __m512i T2 = _mm512_add_epi32(S0(a), Maj(a, b, c));
     h = g;
     g = f;
     f = e;
-    e = d;
+    e = _mm512_add_epi32(d, T1);
     d = c;
     c = b;
     b = a;
-    a = temp;
+    a = _mm512_add_epi32(T1, T2);
   }
 
-  // Add the compressed chunk to the current hash value
+  // Dodanie skompresowanego bloku do aktualnej wartości hash
   a = _mm512_add_epi32(a, _mm512_set1_epi32(0x6A09E667));
   b = _mm512_add_epi32(b, _mm512_set1_epi32(0xBB67AE85));
   c = _mm512_add_epi32(c, _mm512_set1_epi32(0x3C6EF372));
@@ -94,7 +84,7 @@ void sha256avx512_16B(const uint8_t* inputs[16], uint8_t* outputs[16]) {
   g = _mm512_add_epi32(g, _mm512_set1_epi32(0x1F83D9AB));
   h = _mm512_add_epi32(h, _mm512_set1_epi32(0x5BE0CD19));
 
-  // Store results
+  // Przechowywanie wyników
   alignas(64) uint32_t result[8][16];
   _mm512_store_epi32(result[0], a);
   _mm512_store_epi32(result[1], b);
@@ -105,7 +95,7 @@ void sha256avx512_16B(const uint8_t* inputs[16], uint8_t* outputs[16]) {
   _mm512_store_epi32(result[6], g);
   _mm512_store_epi32(result[7], h);
 
-  // Transpose and store output
+  // Transponowanie i przechowywanie wyjścia
   for (int i = 0; i < 16; i++) {
     for (int j = 0; j < 8; j++) {
       ((uint32_t*)outputs[i])[j] = __builtin_bswap32(result[j][i]);
