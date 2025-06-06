@@ -72,8 +72,8 @@ int PUZZLE_NUM = 20;
 int WORKERS = omp_get_num_procs();
 int FLIP_COUNT = -1;
 const __uint128_t REPORT_INTERVAL = 10000000;
-static constexpr int POINTS_BATCH_SIZE = 512;  // FIXED: Increased for AVX-512
-static constexpr int HASH_BATCH_SIZE = 16;     // FIXED: Increased for AVX-512
+static constexpr int POINTS_BATCH_SIZE = 512;
+static constexpr int HASH_BATCH_SIZE = 16;
 
 const unordered_map<int, tuple<int, string, string>> PUZZLE_DATA = {
     {20, {8, "b907c3a2a3b27789dfb509b730dd47703c272868", "357535"}},
@@ -136,7 +136,6 @@ atomic<bool> stop_event(false);
 mutex result_mutex;
 queue<tuple<string, __uint128_t, int>> results;
 
-// FIXED: Correct AVX-512 Counter structure
 union AVXCounter {
   __m512i vec512;
   uint64_t u64[8];
@@ -397,12 +396,6 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
   alignas(64) uint8_t localHashResults[HASH_BATCH_SIZE][20];
   alignas(64) int pointIndices[HASH_BATCH_SIZE];
 
-  // FIXED: Proper AVX-512 hash comparison setup
-  alignas(64) uint8_t target_padded[64];
-  memset(target_padded, 0, 64);
-  memcpy(target_padded, TARGET_HASH160_RAW.data(), 20);
-  __m512i target512 = _mm512_load_si512(target_padded);
-
   alignas(64) Point plusPoints[POINTS_BATCH_SIZE];
   alignas(64) Point minusPoints[POINTS_BATCH_SIZE];
 
@@ -434,7 +427,6 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
 
     const vector<int>& flips = gen.get();
 
-    // Apply bit flips
     for (int pos : flips) {
       Int mask;
       mask.SetInt32(1);
@@ -531,52 +523,47 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
         actual_work_done += HASH_BATCH_SIZE;
         localComparedCount += HASH_BATCH_SIZE;
 
-        // FIXED: Correct AVX-512 hash comparison
         for (int j = 0; j < HASH_BATCH_SIZE; j++) {
-          alignas(64) uint8_t hash_padded[64];
-          memset(hash_padded, 0, 64);
-          memcpy(hash_padded, localHashResults[j], 20);
-
-          __m512i hash512 = _mm512_load_si512(hash_padded);
-          __mmask64 cmp_mask = _mm512_cmpeq_epi8_mask(hash512, target512);
-
-          // Check if first 20 bytes match (bits 0-159 in mask)
-          const uint64_t match_mask = (1ULL << 20) - 1;  // 0xFFFFF
-          if ((cmp_mask & match_mask) == match_mask) {
-            // Double-check with memcmp for safety
-            if (memcmp(localHashResults[j], TARGET_HASH160_RAW.data(), 20) == 0) {
-              auto tEndTime = chrono::high_resolution_clock::now();
-              globalElapsedTime = chrono::duration<double>(tEndTime - tStart).count();
-
-              {
-                lock_guard<mutex> lock(progress_mutex);
-                globalComparedCount += actual_work_done;
-                mkeysPerSec = (double)globalComparedCount / globalElapsedTime / 1e6;
-              }
-
-              Int foundKey;
-              foundKey.Set(&currentKey);
-              int idx = pointIndices[j];
-              if (idx < POINTS_BATCH_SIZE) {
-                Int offset;
-                offset.SetInt32(idx);
-                foundKey.Add(&offset);
-              } else {
-                Int offset;
-                offset.SetInt32(idx - POINTS_BATCH_SIZE);
-                foundKey.Sub(&offset);
-              }
-
-              string hexKey = foundKey.GetBase16();
-              hexKey = string(64 - hexKey.length(), '0') + hexKey;
-
-              {
-                lock_guard<mutex> lock(result_mutex);
-                results.push(make_tuple(hexKey, total_checked_avx.load(), flip_count));
-              }
-              stop_event.store(true);
-              return;
+          bool fullMatch = true;
+          for (int k = 0; k < 20; k++) {
+            if (localHashResults[j][k] != TARGET_HASH160_RAW[k]) {
+              fullMatch = false;
+              break;
             }
+          }
+
+          if (fullMatch) {
+            auto tEndTime = chrono::high_resolution_clock::now();
+            globalElapsedTime = chrono::duration<double>(tEndTime - tStart).count();
+
+            {
+              lock_guard<mutex> lock(progress_mutex);
+              globalComparedCount += actual_work_done;
+              mkeysPerSec = (double)globalComparedCount / globalElapsedTime / 1e6;
+            }
+
+            Int foundKey;
+            foundKey.Set(&currentKey);
+            int idx = pointIndices[j];
+            if (idx < POINTS_BATCH_SIZE) {
+              Int offset;
+              offset.SetInt32(idx);
+              foundKey.Add(&offset);
+            } else {
+              Int offset;
+              offset.SetInt32(idx - POINTS_BATCH_SIZE);
+              foundKey.Sub(&offset);
+            }
+
+            string hexKey = foundKey.GetBase16();
+            hexKey = string(64 - hexKey.length(), '0') + hexKey;
+
+            {
+              lock_guard<mutex> lock(result_mutex);
+              results.push(make_tuple(hexKey, total_checked_avx.load(), flip_count));
+            }
+            stop_event.store(true);
+            return;
           }
         }
 
