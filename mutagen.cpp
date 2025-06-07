@@ -174,7 +174,6 @@ class SmartMutagenLogger {
   }
 };
 
-// Global logger
 SmartMutagenLogger* g_smart_logger = nullptr;
 
 void initConsole() {
@@ -534,6 +533,7 @@ static void computeHash160BatchBinSingle(int numKeys, uint8_t pubKeys[][33],
   }
 }
 
+// NAJWAŻNIEJSZA CZĘŚĆ: poprawny algorytm mutacji (AVX2-style logic)
 void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCounter start,
             AVXCounter end) {
   if (g_smart_logger) {
@@ -565,6 +565,7 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
   alignas(64) Int pointBatchY[fullBatchSize];
 
   CombinationGenerator gen(bit_length, flip_count);
+  gen.unrank(start.load());
 
   AVXCounter count;
   count.store(start.load());
@@ -572,9 +573,6 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
   uint64_t actual_work_done = 0;
 
   while (!stop_event.load() && count < end) {
-    // CRITICAL FIX: Use unrank to get the correct combination for current index
-    gen.unrank(count.load());
-
     Int currentKey;
     currentKey.Set(&BASE_KEY);
 
@@ -779,7 +777,8 @@ void worker(Secp256K1* secp, int bit_length, int flip_count, int threadId, AVXCo
       }
     }
 
-    // CRITICAL FIX: Just increment count, don't use gen.next()
+    // --- kluczowa linia: przejdź do następnej kombinacji ---
+    if (!gen.next()) break;
     count.increment();
 
     if (count >= end) {
@@ -933,7 +932,6 @@ int main(int argc, char* argv[]) {
     cout << "(override, default was " << DEFAULT_FLIP_COUNT << ")";
   }
   cout << "\n";
-
   if (PUZZLE_NUM == 71 && FLIP_COUNT == 29) {
     cout << "*** WARNING: Flip count is an ESTIMATE for Puzzle 71 and might be incorrect! ***\n";
   }
