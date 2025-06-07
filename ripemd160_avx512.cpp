@@ -1,257 +1,109 @@
 #include <immintrin.h>
-
-#include <cstdint>
-#include <cstring>
+#include <stdint.h>
+#include <string.h>
 
 #include "ripemd160_avx512.h"
 
 namespace ripemd160avx512 {
 
-#define ROL(x, n) _mm512_rol_epi32(x, n)
+// Helper for little-endian load
+static inline uint32_t read_le32(const uint8_t* p) {
+  return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
 
-#define f1(x, y, z) _mm512_xor_si512(x, _mm512_xor_si512(y, z))
-#define f2(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0xCA)
-#define f3(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x96)
-#define f4(x, y, z) _mm512_ternarylogic_epi32(x, z, y, 0xAC)
-#define f5(x, y, z) _mm512_ternarylogic_epi32(x, y, z, 0x3C)
-
-#define add3(x0, x1, x2) _mm512_add_epi32(_mm512_add_epi32(x0, x1), x2)
-#define add4(x0, x1, x2, x3) _mm512_add_epi32(_mm512_add_epi32(x0, x1), _mm512_add_epi32(x2, x3))
-
-#define Round(a, b, c, d, e, f, x, k, r)             \
-  do {                                               \
-    __m512i u = add4(a, f, x, _mm512_set1_epi32(k)); \
-    a = _mm512_add_epi32(ROL(u, r), e);              \
-    c = ROL(c, 10);                                  \
-  } while (0)
-
-#define R11(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
-#define R21(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x5A827999ul, r)
-#define R31(a, b, c, d, e, x, r) Round(a, b, c, d, e, f3(b, c, d), x, 0x6ED9EBA1ul, r)
-#define R41(a, b, c, d, e, x, r) Round(a, b, c, d, e, f4(b, c, d), x, 0x8F1BBCDCul, r)
-#define R51(a, b, c, d, e, x, r) Round(a, b, c, d, e, f5(b, c, d), x, 0xA953FD4Eul, r)
-#define R12(a, b, c, d, e, x, r) Round(a, b, c, d, e, f5(b, c, d), x, 0x50A28BE6ul, r)
-#define R22(a, b, c, d, e, x, r) Round(a, b, c, d, e, f4(b, c, d), x, 0x5C4DD124ul, r)
-#define R32(a, b, c, d, e, x, r) Round(a, b, c, d, e, f3(b, c, d), x, 0x6D703EF3ul, r)
-#define R42(a, b, c, d, e, x, r) Round(a, b, c, d, e, f2(b, c, d), x, 0x7A6D76E9ul, r)
-#define R52(a, b, c, d, e, x, r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
-
+// Perform 16-way RIPEMD-160 for 32-byte inputs, store 20-byte outputs per input
 void ripemd160avx512_16(const uint8_t* inputs[16], uint8_t* outputs[16]) {
-  // Inicjalizacja RIPEMD-160
-  __m512i a1 = _mm512_set1_epi32(0x67452301ul);
-  __m512i b1 = _mm512_set1_epi32(0xEFCDAB89ul);
-  __m512i c1 = _mm512_set1_epi32(0x98BADCFEul);
-  __m512i d1 = _mm512_set1_epi32(0x10325476ul);
-  __m512i e1 = _mm512_set1_epi32(0xC3D2E1F0ul);
+  static const uint32_t h0_init = 0x67452301UL;
+  static const uint32_t h1_init = 0xEFCDAB89UL;
+  static const uint32_t h2_init = 0x98BADCFEUL;
+  static const uint32_t h3_init = 0x10325476UL;
+  static const uint32_t h4_init = 0xC3D2E1F0UL;
 
-  __m512i a2 = a1, b2 = b1, c2 = c1, d2 = d1, e2 = e1;
+  static const uint32_t K[5] = {0x00000000UL, 0x5A827999UL, 0x6ED9EBA1UL, 0x8F1BBCDCUL,
+                                0xA953FD4EUL};
+  static const uint32_t KK[5] = {0x50A28BE6UL, 0x5C4DD124UL, 0x6D703EF3UL, 0x7A6D76E9UL,
+                                 0x00000000UL};
 
-  // Ładowanie danych wejściowych
-  __m512i w[16];
-  for (int i = 0; i < 16; i++) {
-    w[i] = _mm512_set_epi32(
-        ((uint32_t*)inputs[15])[i], ((uint32_t*)inputs[14])[i], ((uint32_t*)inputs[13])[i],
-        ((uint32_t*)inputs[12])[i], ((uint32_t*)inputs[11])[i], ((uint32_t*)inputs[10])[i],
-        ((uint32_t*)inputs[9])[i], ((uint32_t*)inputs[8])[i], ((uint32_t*)inputs[7])[i],
-        ((uint32_t*)inputs[6])[i], ((uint32_t*)inputs[5])[i], ((uint32_t*)inputs[4])[i],
-        ((uint32_t*)inputs[3])[i], ((uint32_t*)inputs[2])[i], ((uint32_t*)inputs[1])[i],
-        ((uint32_t*)inputs[0])[i]);
-  }
+  static const uint8_t RL[80] = {11, 14, 15, 12, 5,  8,  7,  9,  11, 13, 14, 15, 6,  7,  9,  8,
+                                 7,  6,  8,  13, 11, 9,  7,  15, 7,  12, 15, 9,  11, 7,  13, 12,
+                                 11, 13, 6,  7,  14, 9,  13, 15, 14, 8,  13, 6,  5,  12, 7,  5,
+                                 11, 12, 14, 15, 14, 15, 9,  8,  9,  14, 5,  6,  8,  6,  5,  12,
+                                 9,  15, 5,  11, 6,  8,  13, 12, 5,  12, 13, 14, 11, 8,  5,  6};
+  static const uint8_t RR[80] = {8,  9,  9,  11, 13, 15, 15, 5,  7,  7,  8,  11, 14, 14, 12, 6,
+                                 9,  13, 15, 7,  12, 8,  9,  11, 7,  7,  12, 7,  6,  15, 13, 11,
+                                 9,  7,  15, 11, 8,  6,  6,  14, 12, 13, 5,  14, 13, 13, 7,  5,
+                                 15, 5,  8,  11, 14, 14, 6,  14, 6,  9,  12, 9,  12, 5,  15, 8,
+                                 8,  5,  12, 9,  12, 5,  14, 6,  8,  13, 6,  5,  15, 13, 11, 11};
+  static const uint8_t SL[80] = {0, 1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+                                 7, 4,  13, 1,  10, 6,  15, 3,  12, 0, 9,  5,  2,  14, 11, 8,
+                                 3, 10, 14, 4,  9,  15, 8,  1,  2,  7, 0,  6,  13, 11, 5,  12,
+                                 1, 9,  11, 10, 0,  8,  12, 4,  13, 3, 7,  15, 14, 5,  6,  2,
+                                 4, 0,  5,  9,  7,  12, 2,  10, 14, 1, 3,  8,  11, 6,  15, 13};
+  static const uint8_t SR[80] = {5,  14, 7,  0, 9, 2,  11, 4,  13, 6,  15, 8,  1,  10, 3,  12,
+                                 6,  11, 3,  7, 0, 13, 5,  10, 14, 15, 8,  12, 4,  9,  1,  2,
+                                 15, 5,  1,  3, 7, 14, 6,  9,  11, 8,  12, 2,  10, 0,  13, 4,
+                                 8,  6,  4,  1, 3, 11, 15, 0,  5,  12, 2,  13, 9,  7,  10, 14,
+                                 12, 15, 10, 4, 1, 5,  8,  7,  6,  2,  13, 14, 0,  3,  9,  11};
 
-  // RIPEMD-160 rundy - identyczne z oryginalem
-  R11(a1, b1, c1, d1, e1, w[0], 11);
-  R12(a2, b2, c2, d2, e2, w[5], 8);
-  R11(e1, a1, b1, c1, d1, w[1], 14);
-  R12(e2, a2, b2, c2, d2, w[14], 9);
-  R11(d1, e1, a1, b1, c1, w[2], 15);
-  R12(d2, e2, a2, b2, c2, w[7], 9);
-  R11(c1, d1, e1, a1, b1, w[3], 12);
-  R12(c2, d2, e2, a2, b2, w[0], 11);
-  R11(b1, c1, d1, e1, a1, w[4], 5);
-  R12(b2, c2, d2, e2, a2, w[9], 13);
-  R11(a1, b1, c1, d1, e1, w[5], 8);
-  R12(a2, b2, c2, d2, e2, w[2], 15);
-  R11(e1, a1, b1, c1, d1, w[6], 7);
-  R12(e2, a2, b2, c2, d2, w[11], 15);
-  R11(d1, e1, a1, b1, c1, w[7], 9);
-  R12(d2, e2, a2, b2, c2, w[4], 5);
-  R11(c1, d1, e1, a1, b1, w[8], 11);
-  R12(c2, d2, e2, a2, b2, w[13], 7);
-  R11(b1, c1, d1, e1, a1, w[9], 13);
-  R12(b2, c2, d2, e2, a2, w[6], 7);
-  R11(a1, b1, c1, d1, e1, w[10], 14);
-  R12(a2, b2, c2, d2, e2, w[15], 8);
-  R11(e1, a1, b1, c1, d1, w[11], 15);
-  R12(e2, a2, b2, c2, d2, w[8], 11);
-  R11(d1, e1, a1, b1, c1, w[12], 6);
-  R12(d2, e2, a2, b2, c2, w[1], 14);
-  R11(c1, d1, e1, a1, b1, w[13], 7);
-  R12(c2, d2, e2, a2, b2, w[10], 14);
-  R11(b1, c1, d1, e1, a1, w[14], 9);
-  R12(b2, c2, d2, e2, a2, w[3], 12);
-  R11(a1, b1, c1, d1, e1, w[15], 8);
-  R12(a2, b2, c2, d2, e2, w[12], 6);
+  for (int blk = 0; blk < 16; ++blk) {
+    uint32_t X[16];
+    for (int i = 0; i < 16; ++i) X[i] = read_le32(inputs[blk] + i * 4);
 
-  R21(e1, a1, b1, c1, d1, w[7], 7);
-  R22(e2, a2, b2, c2, d2, w[6], 9);
-  R21(d1, e1, a1, b1, c1, w[4], 6);
-  R22(d2, e2, a2, b2, c2, w[11], 13);
-  R21(c1, d1, e1, a1, b1, w[13], 8);
-  R22(c2, d2, e2, a2, b2, w[3], 15);
-  R21(b1, c1, d1, e1, a1, w[1], 13);
-  R22(b2, c2, d2, e2, a2, w[7], 7);
-  R21(a1, b1, c1, d1, e1, w[10], 11);
-  R22(a2, b2, c2, d2, e2, w[0], 12);
-  R21(e1, a1, b1, c1, d1, w[6], 9);
-  R22(e2, a2, b2, c2, d2, w[13], 8);
-  R21(d1, e1, a1, b1, c1, w[15], 7);
-  R22(d2, e2, a2, b2, c2, w[5], 9);
-  R21(c1, d1, e1, a1, b1, w[3], 15);
-  R22(c2, d2, e2, a2, b2, w[10], 11);
-  R21(b1, c1, d1, e1, a1, w[12], 7);
-  R22(b2, c2, d2, e2, a2, w[14], 7);
-  R21(a1, b1, c1, d1, e1, w[0], 12);
-  R22(a2, b2, c2, d2, e2, w[15], 7);
-  R21(e1, a1, b1, c1, d1, w[9], 15);
-  R22(e2, a2, b2, c2, d2, w[8], 12);
-  R21(d1, e1, a1, b1, c1, w[5], 9);
-  R22(d2, e2, a2, b2, c2, w[12], 7);
-  R21(c1, d1, e1, a1, b1, w[2], 11);
-  R22(c2, d2, e2, a2, b2, w[4], 6);
-  R21(b1, c1, d1, e1, a1, w[14], 7);
-  R22(b2, c2, d2, e2, a2, w[9], 15);
-  R21(a1, b1, c1, d1, e1, w[11], 13);
-  R22(a2, b2, c2, d2, e2, w[1], 13);
-  R21(e1, a1, b1, c1, d1, w[8], 12);
-  R22(e2, a2, b2, c2, d2, w[2], 11);
+    uint32_t al = h0_init, bl = h1_init, cl = h2_init, dl = h3_init, el = h4_init;
+    uint32_t ar = h0_init, br = h1_init, cr = h2_init, dr = h3_init, er = h4_init;
 
-  R31(d1, e1, a1, b1, c1, w[3], 11);
-  R32(d2, e2, a2, b2, c2, w[15], 9);
-  R31(c1, d1, e1, a1, b1, w[10], 13);
-  R32(c2, d2, e2, a2, b2, w[5], 7);
-  R31(b1, c1, d1, e1, a1, w[14], 6);
-  R32(b2, c2, d2, e2, a2, w[1], 15);
-  R31(a1, b1, c1, d1, e1, w[4], 7);
-  R32(a2, b2, c2, d2, e2, w[3], 11);
-  R31(e1, a1, b1, c1, d1, w[9], 14);
-  R32(e2, a2, b2, c2, d2, w[7], 8);
-  R31(d1, e1, a1, b1, c1, w[15], 9);
-  R32(d2, e2, a2, b2, c2, w[14], 6);
-  R31(c1, d1, e1, a1, b1, w[8], 13);
-  R32(c2, d2, e2, a2, b2, w[6], 6);
-  R31(b1, c1, d1, e1, a1, w[1], 15);
-  R32(b2, c2, d2, e2, a2, w[9], 14);
-  R31(a1, b1, c1, d1, e1, w[2], 14);
-  R32(a2, b2, c2, d2, e2, w[11], 12);
-  R31(e1, a1, b1, c1, d1, w[7], 8);
-  R32(e2, a2, b2, c2, d2, w[8], 13);
-  R31(d1, e1, a1, b1, c1, w[0], 13);
-  R32(d2, e2, a2, b2, c2, w[12], 5);
-  R31(c1, d1, e1, a1, b1, w[6], 6);
-  R32(c2, d2, e2, a2, b2, w[2], 14);
-  R31(b1, c1, d1, e1, a1, w[13], 5);
-  R32(b2, c2, d2, e2, a2, w[10], 13);
-  R31(a1, b1, c1, d1, e1, w[11], 12);
-  R32(a2, b2, c2, d2, e2, w[0], 13);
-  R31(e1, a1, b1, c1, d1, w[5], 7);
-  R32(e2, a2, b2, c2, d2, w[4], 7);
-  R31(d1, e1, a1, b1, c1, w[12], 5);
-  R32(d2, e2, a2, b2, c2, w[13], 5);
+    for (int j = 0; j < 80; ++j) {
+      uint32_t tl, tr;
+      // Left line
+      if (j < 16)
+        tl = al + (bl ^ cl ^ dl) + X[SL[j]];
+      else if (j < 32)
+        tl = al + ((bl & cl) | (~bl & dl)) + X[SL[j]] + K[1];
+      else if (j < 48)
+        tl = al + ((bl | ~cl) ^ dl) + X[SL[j]] + K[2];
+      else if (j < 64)
+        tl = al + ((bl & dl) | (cl & ~dl)) + X[SL[j]] + K[3];
+      else
+        tl = al + (bl ^ (cl | ~dl)) + X[SL[j]] + K[4];
+      tl = (tl << RL[j] | tl >> (32 - RL[j])) + el;
+      al = el;
+      el = dl;
+      dl = (cl << 10) | (cl >> (32 - 10));
+      cl = bl;
+      bl = tl;
 
-  R41(c1, d1, e1, a1, b1, w[1], 11);
-  R42(c2, d2, e2, a2, b2, w[8], 15);
-  R41(b1, c1, d1, e1, a1, w[9], 12);
-  R42(b2, c2, d2, e2, a2, w[6], 5);
-  R41(a1, b1, c1, d1, e1, w[11], 14);
-  R42(a2, b2, c2, d2, e2, w[4], 8);
-  R41(e1, a1, b1, c1, d1, w[10], 15);
-  R42(e2, a2, b2, c2, d2, w[1], 11);
-  R41(d1, e1, a1, b1, c1, w[0], 14);
-  R42(d2, e2, a2, b2, c2, w[3], 14);
-  R41(c1, d1, e1, a1, b1, w[8], 15);
-  R42(c2, d2, e2, a2, b2, w[11], 14);
-  R41(b1, c1, d1, e1, a1, w[12], 9);
-  R42(b2, c2, d2, e2, a2, w[15], 6);
-  R41(a1, b1, c1, d1, e1, w[4], 8);
-  R42(a2, b2, c2, d2, e2, w[0], 14);
-  R41(e1, a1, b1, c1, d1, w[13], 9);
-  R42(e2, a2, b2, c2, d2, w[5], 6);
-  R41(d1, e1, a1, b1, c1, w[3], 14);
-  R42(d2, e2, a2, b2, c2, w[12], 9);
-  R41(c1, d1, e1, a1, b1, w[7], 5);
-  R42(c2, d2, e2, a2, b2, w[2], 12);
-  R41(b1, c1, d1, e1, a1, w[15], 6);
-  R42(b2, c2, d2, e2, a2, w[13], 9);
-  R41(a1, b1, c1, d1, e1, w[14], 8);
-  R42(a2, b2, c2, d2, e2, w[9], 12);
-  R41(e1, a1, b1, c1, d1, w[5], 6);
-  R42(e2, a2, b2, c2, d2, w[7], 5);
-  R41(d1, e1, a1, b1, c1, w[6], 5);
-  R42(d2, e2, a2, b2, c2, w[10], 15);
-  R41(c1, d1, e1, a1, b1, w[2], 12);
-  R42(c2, d2, e2, a2, b2, w[14], 8);
+      // Right line
+      if (j < 16)
+        tr = ar + (br ^ (cr | ~dr)) + X[SR[j]] + KK[0];
+      else if (j < 32)
+        tr = ar + ((br & dr) | (cr & ~dr)) + X[SR[j]] + KK[1];
+      else if (j < 48)
+        tr = ar + ((br | ~cr) ^ dr) + X[SR[j]] + KK[2];
+      else if (j < 64)
+        tr = ar + ((br & cr) | (~br & dr)) + X[SR[j]] + KK[3];
+      else
+        tr = ar + (br ^ cr ^ dr) + X[SR[j]];
+      tr = (tr << RR[j] | tr >> (32 - RR[j])) + er;
+      ar = er;
+      er = dr;
+      dr = (cr << 10) | (cr >> (32 - 10));
+      cr = br;
+      br = tr;
+    }
+    uint32_t t = h1_init + cl + dr;
+    uint32_t h1 = h2_init + dl + er;
+    uint32_t h2 = h3_init + el + ar;
+    uint32_t h3 = h4_init + al + br;
+    uint32_t h4 = h0_init + bl + cr;
+    uint32_t h0 = t;
 
-  R51(b1, c1, d1, e1, a1, w[4], 9);
-  R52(b2, c2, d2, e2, a2, w[12], 8);
-  R51(a1, b1, c1, d1, e1, w[0], 15);
-  R52(a2, b2, c2, d2, e2, w[15], 5);
-  R51(e1, a1, b1, c1, d1, w[5], 5);
-  R52(e2, a2, b2, c2, d2, w[10], 12);
-  R51(d1, e1, a1, b1, c1, w[9], 11);
-  R52(d2, e2, a2, b2, c2, w[4], 9);
-  R51(c1, d1, e1, a1, b1, w[7], 6);
-  R52(c2, d2, e2, a2, b2, w[1], 12);
-  R51(b1, c1, d1, e1, a1, w[12], 8);
-  R52(b2, c2, d2, e2, a2, w[5], 5);
-  R51(a1, b1, c1, d1, e1, w[2], 13);
-  R52(a2, b2, c2, d2, e2, w[8], 14);
-  R51(e1, a1, b1, c1, d1, w[10], 12);
-  R52(e2, a2, b2, c2, d2, w[7], 6);
-  R51(d1, e1, a1, b1, c1, w[14], 5);
-  R52(d2, e2, a2, b2, c2, w[6], 8);
-  R51(c1, d1, e1, a1, b1, w[1], 12);
-  R52(c2, d2, e2, a2, b2, w[2], 13);
-  R51(b1, c1, d1, e1, a1, w[3], 13);
-  R52(b2, c2, d2, e2, a2, w[13], 6);
-  R51(a1, b1, c1, d1, e1, w[8], 14);
-  R52(a2, b2, c2, d2, e2, w[14], 5);
-  R51(e1, a1, b1, c1, d1, w[11], 11);
-  R52(e2, a2, b2, c2, d2, w[0], 15);
-  R51(d1, e1, a1, b1, c1, w[6], 8);
-  R52(d2, e2, a2, b2, c2, w[3], 13);
-  R51(c1, d1, e1, a1, b1, w[15], 5);
-  R52(c2, d2, e2, a2, b2, w[9], 11);
-  R51(b1, c1, d1, e1, a1, w[13], 6);
-  R52(b2, c2, d2, e2, a2, w[11], 11);
-
-  // Łączenie wyników RIPEMD-160
-  __m512i init_a = _mm512_set1_epi32(0x67452301ul);
-  __m512i init_b = _mm512_set1_epi32(0xEFCDAB89ul);
-  __m512i init_c = _mm512_set1_epi32(0x98BADCFEul);
-  __m512i init_d = _mm512_set1_epi32(0x10325476ul);
-  __m512i init_e = _mm512_set1_epi32(0xC3D2E1F0ul);
-
-  __m512i t = init_a;
-  __m512i final_a = add3(init_b, c1, d2);
-  __m512i final_b = add3(init_c, d1, e2);
-  __m512i final_c = add3(init_d, e1, a2);
-  __m512i final_d = add3(init_e, a1, b2);
-  __m512i final_e = add3(t, b1, c2);
-
-  // Wyodrębnianie wyników
-  alignas(64) uint32_t state_a[16], state_b[16], state_c[16], state_d[16], state_e[16];
-  _mm512_store_epi32(state_a, final_a);
-  _mm512_store_epi32(state_b, final_b);
-  _mm512_store_epi32(state_c, final_c);
-  _mm512_store_epi32(state_d, final_d);
-  _mm512_store_epi32(state_e, final_e);
-
-  for (int i = 0; i < 16; i++) {
-    ((uint32_t*)outputs[i])[0] = state_a[15 - i];
-    ((uint32_t*)outputs[i])[1] = state_b[15 - i];
-    ((uint32_t*)outputs[i])[2] = state_c[15 - i];
-    ((uint32_t*)outputs[i])[3] = state_d[15 - i];
-    ((uint32_t*)outputs[i])[4] = state_e[15 - i];
+    for (int i = 0; i < 4; ++i) {
+      outputs[blk][i + 0] = (h0 >> (8 * i)) & 0xFF;
+      outputs[blk][i + 4] = (h1 >> (8 * i)) & 0xFF;
+      outputs[blk][i + 8] = (h2 >> (8 * i)) & 0xFF;
+      outputs[blk][i + 12] = (h3 >> (8 * i)) & 0xFF;
+      outputs[blk][i + 16] = (h4 >> (8 * i)) & 0xFF;
+    }
   }
 }
 
