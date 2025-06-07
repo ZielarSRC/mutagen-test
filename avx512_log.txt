@@ -1,19 +1,19 @@
 ========== MUTAGEN AVX512 ALGORITHM ANALYSIS ==========
-Start Time: [0.000027s]
+Start Time: [0.000028s]
 Purpose: Understand how bit flipping mutation works - AVX512 VERSION
 =====================================================
-[0.000048s] [PROGRAM_START] Mutagen AVX512 Puzzle Solver - Algorithm Analysis Mode
-[0.010335s] [ALGORITHM] ALGORITHM_SETUP: Puzzle 22 with 11 bit flips
-[0.010342s] [ALGORITHM] BASE_KEY: Starting from key: 0x1BA534 (decimal: 1811764)
-[0.010344s] [ALGORITHM] TARGET: Looking for hash160: 7ff45303774ef7a52fffd8011981034b258cb86b
-[0.010345s] [ALGORITHM] COMBINATIONS: Total combinations to test: 705432
-[0.010347s] [ALGORITHM] MUTATION_STRATEGY: Will flip 11 bits out of 22 available bit positions
-[0.010631s] [ALGORITHM] WORKER_START: Thread 0 starts processing combinations 0 to 352716
-[0.010667s] [ALGORITHM] WORKER_START: Thread 1 starts processing combinations 352716 to 705432
-[0.011265s] [COMBINATION_GEN] Thread1 | Index: 352716 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-[0.011277s] [COMBINATION_GEN] Thread0 | Index: 0 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+[0.000049s] [PROGRAM_START] Mutagen AVX512 Puzzle Solver - Algorithm Analysis Mode
+[0.010366s] [ALGORITHM] ALGORITHM_SETUP: Puzzle 22 with 11 bit flips
+[0.010374s] [ALGORITHM] BASE_KEY: Starting from key: 0x1BA534 (decimal: 1811764)
+[0.010375s] [ALGORITHM] TARGET: Looking for hash160: 7ff45303774ef7a52fffd8011981034b258cb86b
+[0.010377s] [ALGORITHM] COMBINATIONS: Total combinations to test: 705432
+[0.010378s] [ALGORITHM] MUTATION_STRATEGY: Will flip 11 bits out of 22 available bit positions
+[0.010689s] [ALGORITHM] WORKER_START: Thread 1 starts processing combinations 352716 to 705432
+[0.010705s] [ALGORITHM] WORKER_START: Thread 0 starts processing combinations 0 to 352716
+[0.011334s] [COMBINATION_GEN] Thread1 | Index: 352716 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+[0.011348s] [COMBINATION_GEN] Thread0 | Index: 0 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-[0.011281s] === KEY MUTATION STEP (AVX512) ===
+[0.011355s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #0
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -22,10 +22,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1811147
 XOR difference: 0x7ff
 =========================
-[0.011538s] [COMBINATION_GEN] Thread1 | Index: 352717 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
-[0.011549s] [COMBINATION_GEN] Thread0 | Index: 1 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11]
+[0.011598s] [COMBINATION_GEN] Thread1 | Index: 352717 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]
+[0.011613s] [COMBINATION_GEN] Thread0 | Index: 1 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11]
 
-[0.011554s] === KEY MUTATION STEP (AVX512) ===
+[0.011616s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #1
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -34,10 +34,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1814219
 XOR difference: 0xbff
 =========================
-[0.011783s] [COMBINATION_GEN] Thread1 | Index: 352718 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13]
-[0.011805s] [COMBINATION_GEN] Thread0 | Index: 2 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12]
+[0.011830s] [COMBINATION_GEN] Thread1 | Index: 352718 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13]
+[0.011855s] [COMBINATION_GEN] Thread0 | Index: 2 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12]
 
-[0.011810s] === KEY MUTATION STEP (AVX512) ===
+[0.011858s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #2
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -46,10 +46,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1816267
 XOR difference: 0x13ff
 =========================
-[0.012017s] [COMBINATION_GEN] Thread1 | Index: 352719 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
-[0.012054s] [COMBINATION_GEN] Thread0 | Index: 3 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 13]
+[0.012060s] [COMBINATION_GEN] Thread1 | Index: 352719 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
+[0.012104s] [COMBINATION_GEN] Thread0 | Index: 3 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 13]
 
-[0.012057s] === KEY MUTATION STEP (AVX512) ===
+[0.012107s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #3
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -58,10 +58,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1803979
 XOR difference: 0x23ff
 =========================
-[0.012231s] [COMBINATION_GEN] Thread1 | Index: 352720 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
-[0.012280s] [COMBINATION_GEN] Thread0 | Index: 4 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14]
+[0.012286s] [COMBINATION_GEN] Thread1 | Index: 352720 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15]
+[0.012347s] [COMBINATION_GEN] Thread0 | Index: 4 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 14]
 
-[0.012283s] === KEY MUTATION STEP (AVX512) ===
+[0.012351s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #4
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -70,10 +70,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1828555
 XOR difference: 0x43ff
 =========================
-[0.012451s] [COMBINATION_GEN] Thread1 | Index: 352721 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16]
-[0.012527s] [COMBINATION_GEN] Thread0 | Index: 5 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15]
+[0.012512s] [COMBINATION_GEN] Thread1 | Index: 352721 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16]
+[0.012575s] [COMBINATION_GEN] Thread0 | Index: 5 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15]
 
-[0.012539s] === KEY MUTATION STEP (AVX512) ===
+[0.012586s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #5
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -82,10 +82,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1779403
 XOR difference: 0x83ff
 =========================
-[0.012668s] [COMBINATION_GEN] Thread1 | Index: 352722 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17]
-[0.012761s] [COMBINATION_GEN] Thread0 | Index: 6 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16]
+[0.012716s] [COMBINATION_GEN] Thread1 | Index: 352722 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17]
+[0.012810s] [COMBINATION_GEN] Thread0 | Index: 6 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16]
 
-[0.012764s] === KEY MUTATION STEP (AVX512) ===
+[0.012813s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #6
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -94,10 +94,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1746635
 XOR difference: 0x103ff
 =========================
-[0.012882s] [COMBINATION_GEN] Thread1 | Index: 352723 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18]
-[0.012993s] [COMBINATION_GEN] Thread0 | Index: 7 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17]
+[0.012929s] [COMBINATION_GEN] Thread1 | Index: 352723 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18]
+[0.013037s] [COMBINATION_GEN] Thread0 | Index: 7 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 17]
 
-[0.012996s] === KEY MUTATION STEP (AVX512) ===
+[0.013039s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #7
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -106,10 +106,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1681099
 XOR difference: 0x203ff
 =========================
-[0.013103s] [COMBINATION_GEN] Thread1 | Index: 352724 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 19]
-[0.013220s] [COMBINATION_GEN] Thread0 | Index: 8 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 18]
+[0.013149s] [COMBINATION_GEN] Thread1 | Index: 352724 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 19]
+[0.013272s] [COMBINATION_GEN] Thread0 | Index: 8 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 18]
 
-[0.013223s] === KEY MUTATION STEP (AVX512) ===
+[0.013279s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #8
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -118,10 +118,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 2074315
 XOR difference: 0x403ff
 =========================
-[0.013322s] [COMBINATION_GEN] Thread1 | Index: 352725 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20]
-[0.013450s] [COMBINATION_GEN] Thread0 | Index: 9 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19]
+[0.013374s] [COMBINATION_GEN] Thread1 | Index: 352725 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20]
+[0.013504s] [COMBINATION_GEN] Thread0 | Index: 9 | Bits to flip: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 19]
 
-[0.013453s] === KEY MUTATION STEP (AVX512) ===
+[0.013507s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #9
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -130,11 +130,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1287883
 XOR difference: 0x803ff
 =========================
-[0.013558s] [COMBINATION_GEN] Thread1 | Index: 352726 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21]
-[1.116652s] [COMBINATION_GEN] Thread1 | Index: 357727 | Bits to flip: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 19]
-[1.617100s] [COMBINATION_GEN] Thread1 | Index: 360000 | Bits to flip: [1, 2, 3, 4, 5, 10, 11, 16, 17, 20, 21]
+[0.013590s] [COMBINATION_GEN] Thread1 | Index: 352726 | Bits to flip: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21]
+[1.116622s] [COMBINATION_GEN] Thread1 | Index: 357727 | Bits to flip: [1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 19]
+[1.614897s] [COMBINATION_GEN] Thread1 | Index: 360000 | Bits to flip: [1, 2, 3, 4, 5, 10, 11, 16, 17, 20, 21]
 
-[1.617116s] === KEY MUTATION STEP (AVX512) ===
+[1.614932s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #360000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -143,9 +143,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000002
 Mutated Key (dec): 2664714
 XOR difference: 0x330c3e
 =========================
-[2.215228s] [COMBINATION_GEN] Thread0 | Index: 10000 | Bits to flip: [0, 1, 2, 3, 4, 8, 10, 12, 13, 15, 21]
+[2.222780s] [COMBINATION_GEN] Thread0 | Index: 10000 | Bits to flip: [0, 1, 2, 3, 4, 8, 10, 12, 13, 15, 21]
 
-[2.215251s] === KEY MUTATION STEP (AVX512) ===
+[2.222814s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #10000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -154,11 +154,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000003
 Mutated Key (dec): 3870763
 XOR difference: 0x20b51f
 =========================
-[2.215333s] [COMBINATION_GEN] Thread1 | Index: 362717 | Bits to flip: [1, 2, 3, 4, 6, 7, 15, 17, 18, 20, 21]
-[3.317207s] [COMBINATION_GEN] Thread1 | Index: 367718 | Bits to flip: [1, 2, 3, 4, 7, 9, 13, 15, 16, 17, 19]
-[3.819902s] [COMBINATION_GEN] Thread1 | Index: 370000 | Bits to flip: [1, 2, 3, 4, 8, 11, 12, 13, 14, 17, 21]
+[2.222860s] [COMBINATION_GEN] Thread1 | Index: 362741 | Bits to flip: [1, 2, 3, 4, 6, 8, 9, 10, 11, 13, 20]
+[3.325764s] [COMBINATION_GEN] Thread1 | Index: 367742 | Bits to flip: [1, 2, 3, 4, 7, 9, 13, 16, 17, 20, 21]
+[3.819534s] [COMBINATION_GEN] Thread1 | Index: 370000 | Bits to flip: [1, 2, 3, 4, 8, 11, 12, 13, 14, 17, 21]
 
-[3.819933s] === KEY MUTATION STEP (AVX512) ===
+[3.819571s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #370000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -167,9 +167,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000003
 Mutated Key (dec): 3791914
 XOR difference: 0x22791e
 =========================
-[4.417777s] [COMBINATION_GEN] Thread0 | Index: 20000 | Bits to flip: [0, 1, 2, 3, 5, 11, 12, 14, 16, 19, 20]
+[4.429239s] [COMBINATION_GEN] Thread0 | Index: 20000 | Bits to flip: [0, 1, 2, 3, 5, 11, 12, 14, 16, 19, 20]
 
-[4.417816s] === KEY MUTATION STEP (AVX512) ===
+[4.429284s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #20000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -178,11 +178,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000000
 Mutated Key (dec): 195867
 XOR difference: 0x19582f
 =========================
-[4.417878s] [COMBINATION_GEN] Thread1 | Index: 372715 | Bits to flip: [1, 2, 3, 5, 6, 7, 8, 12, 14, 19, 20]
-[5.519319s] [COMBINATION_GEN] Thread1 | Index: 377716 | Bits to flip: [1, 2, 3, 5, 7, 8, 10, 11, 13, 16, 20]
-[6.023307s] [COMBINATION_GEN] Thread1 | Index: 380000 | Bits to flip: [1, 2, 3, 5, 7, 12, 13, 15, 16, 17, 21]
+[4.429322s] [COMBINATION_GEN] Thread1 | Index: 372783 | Bits to flip: [1, 2, 3, 5, 6, 7, 8, 13, 15, 18, 19]
+[5.526348s] [COMBINATION_GEN] Thread1 | Index: 377784 | Bits to flip: [1, 2, 3, 5, 7, 8, 10, 12, 13, 14, 15]
+[6.012071s] [COMBINATION_GEN] Thread1 | Index: 380000 | Bits to flip: [1, 2, 3, 5, 7, 12, 13, 15, 16, 17, 21]
 
-[6.023327s] === KEY MUTATION STEP (AVX512) ===
+[6.012097s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #380000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -191,9 +191,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000003
 Mutated Key (dec): 3675546
 XOR difference: 0x23b0ae
 =========================
-[6.623103s] [COMBINATION_GEN] Thread0 | Index: 30000 | Bits to flip: [0, 1, 2, 3, 8, 12, 14, 17, 18, 20, 21]
+[6.621763s] [COMBINATION_GEN] Thread0 | Index: 30000 | Bits to flip: [0, 1, 2, 3, 8, 12, 14, 17, 18, 20, 21]
 
-[6.623126s] === KEY MUTATION STEP (AVX512) ===
+[6.621800s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #30000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -202,11 +202,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000002
 Mutated Key (dec): 3011643
 XOR difference: 0x36510f
 =========================
-[6.623227s] [COMBINATION_GEN] Thread1 | Index: 382715 | Bits to flip: [1, 2, 3, 5, 9, 12, 15, 16, 18, 20, 21]
-[7.727040s] [COMBINATION_GEN] Thread1 | Index: 387716 | Bits to flip: [1, 2, 3, 6, 8, 10, 12, 15, 18, 19, 20]
-[8.230120s] [COMBINATION_GEN] Thread1 | Index: 390000 | Bits to flip: [1, 2, 3, 6, 12, 15, 16, 18, 19, 20, 21]
+[6.621832s] [COMBINATION_GEN] Thread1 | Index: 382778 | Bits to flip: [1, 2, 3, 5, 9, 13, 16, 17, 18, 19, 20]
+[7.715214s] [COMBINATION_GEN] Thread1 | Index: 387779 | Bits to flip: [1, 2, 3, 6, 8, 10, 13, 15, 16, 20, 21]
+[8.201793s] [COMBINATION_GEN] Thread1 | Index: 390000 | Bits to flip: [1, 2, 3, 6, 12, 15, 16, 18, 19, 20, 21]
 
-[8.230147s] === KEY MUTATION STEP (AVX512) ===
+[8.201819s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #390000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -215,9 +215,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000002
 Mutated Key (dec): 2504058
 XOR difference: 0x3d904e
 =========================
-[8.827732s] [COMBINATION_GEN] Thread0 | Index: 40000 | Bits to flip: [0, 1, 2, 4, 6, 7, 8, 9, 14, 15, 20]
+[8.810950s] [COMBINATION_GEN] Thread0 | Index: 40000 | Bits to flip: [0, 1, 2, 4, 6, 7, 8, 9, 14, 15, 20]
 
-[8.827754s] === KEY MUTATION STEP (AVX512) ===
+[8.810966s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #40000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -226,9 +226,10 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000000
 Mutated Key (dec): 747235
 XOR difference: 0x10c3d7
 =========================
-[8.827829s] [COMBINATION_GEN] Thread1 | Index: 392715 | Bits to flip: [1, 2, 3, 7, 10, 11, 12, 13, 16, 17, 18]
-[9.927797s] [COMBINATION_GEN] Thread1 | Index: 397716 | Bits to flip: [1, 2, 4, 5, 6, 7, 10, 11, 12, 18, 21]
-[10.430531s] [COMBINATION_GEN] Thread1 | Index: 400000 | Bits to flip: [1, 2, 4, 5, 6, 9, 10, 13, 15, 19, 20]
+[8.811063s] [COMBINATION_GEN] Thread1 | Index: 392780 | Bits to flip: [1, 2, 3, 7, 10, 11, 12, 15, 17, 18, 19]
+[9.906766s] [COMBINATION_GEN] Thread1 | Index: 397781 | Bits to flip: [1, 2, 4, 5, 6, 7, 10, 11, 15, 19, 20]
+[10.393151s] [COMBINATION_GEN] Thread1 | Index: 400000 | Bits to flip: [1, 2, 4, 5, 6, 9, 10, 13, 15, 19, 20]
+[10.393211s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #400000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -237,9 +238,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000000
 Mutated Key (dec): 197442
 XOR difference: 0x18a676
 =========================
-[11.028001s] [COMBINATION_GEN] Thread0 | Index: 50000 | Bits to flip: [0, 1, 2, 4, 9, 10, 15, 16, 17, 19, 20]
+[11.002312s] [COMBINATION_GEN] Thread0 | Index: 50000 | Bits to flip: [0, 1, 2, 4, 9, 10, 15, 16, 17, 19, 20]
 
-[11.028024s] === KEY MUTATION STEP (AVX512) ===
+[11.002337s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #50000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -248,11 +249,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000000
 Mutated Key (dec): 8995
 XOR difference: 0x1b8617
 =========================
-[11.028092s] [COMBINATION_GEN] Thread1 | Index: 402714 | Bits to flip: [1, 2, 4, 5, 7, 8, 14, 15, 16, 18, 19]
-[12.129739s] [COMBINATION_GEN] Thread1 | Index: 407715 | Bits to flip: [1, 2, 4, 5, 11, 13, 14, 15, 16, 18, 20]
-[12.632612s] [COMBINATION_GEN] Thread1 | Index: 410000 | Bits to flip: [1, 2, 4, 6, 7, 10, 11, 12, 13, 15, 16]
+[11.002395s] [COMBINATION_GEN] Thread1 | Index: 402780 | Bits to flip: [1, 2, 4, 5, 7, 9, 10, 11, 12, 14, 21]
+[12.098453s] [COMBINATION_GEN] Thread1 | Index: 407781 | Bits to flip: [1, 2, 4, 5, 11, 14, 16, 17, 18, 19, 20]
+[12.584590s] [COMBINATION_GEN] Thread1 | Index: 410000 | Bits to flip: [1, 2, 4, 6, 7, 10, 11, 12, 13, 15, 16]
 
-[12.632631s] === KEY MUTATION STEP (AVX512) ===
+[12.584609s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #410000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -261,9 +262,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1710562
 XOR difference: 0x1bcd6
 =========================
-[13.229261s] [COMBINATION_GEN] Thread0 | Index: 60000 | Bits to flip: [0, 1, 2, 5, 8, 9, 13, 15, 19, 20, 21]
+[13.193328s] [COMBINATION_GEN] Thread0 | Index: 60000 | Bits to flip: [0, 1, 2, 5, 8, 9, 13, 15, 19, 20, 21]
 
-[13.229280s] === KEY MUTATION STEP (AVX512) ===
+[13.193351s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #60000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -272,11 +273,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000002
 Mutated Key (dec): 2295315
 XOR difference: 0x38a327
 =========================
-[13.229354s] [COMBINATION_GEN] Thread1 | Index: 412714 | Bits to flip: [1, 2, 4, 6, 9, 10, 11, 12, 18, 19, 21]
-[14.334312s] [COMBINATION_GEN] Thread1 | Index: 417715 | Bits to flip: [1, 2, 4, 7, 12, 13, 16, 18, 19, 20, 21]
-[14.836983s] [COMBINATION_GEN] Thread1 | Index: 420000 | Bits to flip: [1, 2, 4, 9, 11, 12, 13, 15, 16, 18, 21]
+[13.193455s] [COMBINATION_GEN] Thread1 | Index: 412780 | Bits to flip: [1, 2, 4, 6, 9, 10, 11, 14, 15, 17, 20]
+[14.289292s] [COMBINATION_GEN] Thread1 | Index: 417781 | Bits to flip: [1, 2, 4, 8, 9, 10, 11, 12, 13, 14, 15]
+[14.775764s] [COMBINATION_GEN] Thread1 | Index: 420000 | Bits to flip: [1, 2, 4, 9, 11, 12, 13, 15, 16, 18, 21]
 
-[14.837002s] === KEY MUTATION STEP (AVX512) ===
+[14.775778s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #420000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -285,8 +286,9 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000003
 Mutated Key (dec): 4071202
 XOR difference: 0x25ba16
 =========================
-[15.434733s] [COMBINATION_GEN] Thread0 | Index: 70000 | Bits to flip: [0, 1, 2, 7, 8, 10, 11, 12, 15, 19, 20]
-[15.434761s] === KEY MUTATION STEP (AVX512) ===
+[15.384756s] [COMBINATION_GEN] Thread0 | Index: 70000 | Bits to flip: [0, 1, 2, 7, 8, 10, 11, 12, 15, 19, 20]
+
+[15.384778s] === KEY MUTATION STEP (AVX512) ===
 Thread: 0 | Combination #70000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -295,11 +297,11 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000000
 Mutated Key (dec): 211123
 XOR difference: 0x189d87
 =========================
-[15.434822s] [COMBINATION_GEN] Thread1 | Index: 422711 | Bits to flip: [1, 2, 5, 6, 7, 9, 12, 15, 16, 20, 21]
-[16.537382s] [COMBINATION_GEN] Thread1 | Index: 427712 | Bits to flip: [1, 2, 5, 7, 8, 9, 11, 14, 16, 19, 21]
-[17.042478s] [COMBINATION_GEN] Thread1 | Index: 430000 | Bits to flip: [1, 2, 5, 7, 10, 11, 13, 14, 16, 17, 18]
+[15.384855s] [COMBINATION_GEN] Thread1 | Index: 422780 | Bits to flip: [1, 2, 5, 6, 7, 9, 13, 15, 16, 19, 21]
+[16.481917s] [COMBINATION_GEN] Thread1 | Index: 427781 | Bits to flip: [1, 2, 5, 7, 8, 9, 12, 13, 15, 16, 18]
+[16.967467s] [COMBINATION_GEN] Thread1 | Index: 430000 | Bits to flip: [1, 2, 5, 7, 10, 11, 13, 14, 16, 17, 18]
 
-[17.042497s] === KEY MUTATION STEP (AVX512) ===
+[16.967486s] === KEY MUTATION STEP (AVX512) ===
 Thread: 1 | Combination #430000
 Base Key (hex): 00000000000000000000000000000000000000000000000000000000001BA534
 Base Key (dec): 1811764
@@ -308,8 +310,8 @@ After flipping bits: 00000000000000000000000000000000000000000000000000000000001
 Mutated Key (dec): 1886610
 XOR difference: 0x76ca6
 =========================
-[17.228270s] [ALGORITHM] WORKER_END: Thread 1 finished
-[17.228363s] [ALGORITHM] WORKER_END: Thread 0 finished
-[17.228428s] [ALGORITHM] PROGRAM_END: Analysis complete. Total time: 17.228360s
+[17.158540s] [ALGORITHM] WORKER_END: Thread 1 finished
+[17.158565s] [ALGORITHM] WORKER_END: Thread 0 finished
+[17.158766s] [ALGORITHM] PROGRAM_END: Analysis complete. Total time: 17.158609s
 
 ========== AVX512 ANALYSIS COMPLETE ==========
